@@ -1,0 +1,45 @@
+rules:
+  - id: no-module-store-singleton
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Do not export a singleton store instance in App Router. Always construct stores per request or inside StoreProvider with useRef (see AGENTS.md §6.1)."
+    patterns:
+      - pattern: export const $STORE = configureStore(...)
+    metadata:
+      category: security
+      technology:
+        - nextjs
+        - redux
+
+  - id: no-raw-dangerously-set-inner-html
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: "Avoid dangerouslySetInnerHTML. If rich text is necessary, sanitize server-side and client-side (see AGENTS.md §12)."
+    patterns:
+      - pattern: <$TAG ... dangerouslySetInnerHTML={{ ... }} ... />
+    metadata:
+      category: security
+      cwe: "CWE-79: Cross-site Scripting (XSS)"
+      technology:
+        - react
+
+  - id: no-eval-or-function-constructor
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Use of eval() or Function constructor is insecure and strictly forbidden."
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+    metadata:
+      category: security
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+
+  - id: ban-no-verify-flag
+    languages: [generic]
+    severity: ERROR
+    message: "NEVER use the --no-verify flag when running git commit or git push."
+    patterns:
+      - pattern-regex: "(git\\s+(commit|push)[^\\n]*--no-verify)"
+    metadata:
+      category: security

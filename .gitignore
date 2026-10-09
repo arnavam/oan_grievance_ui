@@ -141,3 +141,22 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Next.js
+next-env.d.ts
+
+# misc
+.DS_Store
+*.pem
+cookies.txt
+
+# vercel
+.vercel
+
+# local agents
+.agents/
+
+# Playwright
+/test-results/
+/playwright-report/
+/e2e-qa/results.json

@@ -1,0 +1,39 @@
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+    - GHSA-wq5f-xc86-pv6w
+    - GHSA-8r5x-fm3f-whwj
+    - GHSA-p8wg-vrv2-v86f
+minimumReleaseAgeExclude:
+  - brace-expansion@1.1.19 || 1.1.20 || 1.1.21 || 5.0.10 || 5.0.11 || 5.0.12
+  - '@next/env@16.3.8'
+  - '@next/eslint-plugin-next@16.3.8'
+  - '@next/swc-darwin-arm64@16.3.8'
+  - '@next/swc-darwin-x64@16.3.8'
+  - '@next/swc-linux-arm64-gnu@16.3.8'
+  - '@next/swc-linux-arm64-musl@16.3.8'
+  - '@next/swc-linux-x64-gnu@16.3.8'
+  - '@next/swc-linux-x64-musl@16.3.8'
+  - '@next/swc-win32-arm64-msvc@16.3.8'
+  - '@next/swc-win32-x64-msvc@16.3.8'
+  - eslint-config-next@16.3.8
+  - next@16.3.8
+overrides:
+  brace-expansion@<1.1.19: ^1.1.19
+  brace-expansion@<1.1.20: ^1.1.20
+  brace-expansion@<1.1.21: ^1.1.21
+  brace-expansion@>=4.0.0 <5.0.10: ^5.0.10
+  brace-expansion@>=4.0.0 <5.0.11: ^5.0.11
+  brace-expansion@>=4.0.0 <5.0.12: ^5.0.12
+  # eslint-plugin-boundaries@7.2.0 (latest, devDependency-only) pulls handlebars@4.7.9
+  # via @boundaries/elements, vulnerable to GHSA-8r5x-fm3f-whwj and GHSA-p8wg-vrv2-v86f
+  # (both critical, CI's `pnpm audit --audit-level=high` step). Not shipped to users —
+  # handlebars here only runs inside the linter's own tooling — but still worth pinning
+  # to the patched release rather than ignoring the GHSAs outright.
+  handlebars@<4.7.10: ^4.7.10
