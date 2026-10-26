@@ -10,7 +10,7 @@ vi.mock('@/lib/attachments', async (importOriginal) => ({
   fetchAttachmentBlobUrl: (...args: [string, boolean?]) => fetchAttachmentBlobUrl(...args),
 }));
 
-// Real backend gap still open (see attachmentDisplay.tsx) — but the download
+// Download is still held back (see attachmentDisplay.tsx) — but the download
 // path is only exercisable at all with the flag off, so this file tests as
 // if it had already been flipped, the way it'll actually be used later.
 vi.mock('./attachmentDisplay', async (importOriginal) => ({

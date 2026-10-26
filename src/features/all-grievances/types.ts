@@ -250,7 +250,6 @@ export interface GrievanceTimelineAttachment {
   id?: string;
   timeline_entry?: string | null;
   file_name?: string | null;
-  file_url?: string | null;
   file_size?: number | null;
   mime_type?: string | null;
   document_type?: string | null;

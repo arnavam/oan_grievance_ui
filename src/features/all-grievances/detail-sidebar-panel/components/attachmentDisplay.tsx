@@ -29,12 +29,12 @@ export function scanStatusBadge(row: Pick<AttachmentRow, "scan_status">): ReactN
  * rather than two guesses at the same explanation.
  */
 export const ATTACHMENT_BYTES_UNAVAILABLE_REASON =
-  "Not available yet — a backend gap blocks file downloads through this app's login for now.";
+  "Not available yet — file downloads are being verified with the backend.";
 
 /**
  * Flip this once `/view?download=1` is verified — a single point to re-enable
- * Download, rather than deleting/re-adding the disabled prop by hand. `DocumentViewerPopup`'s download
- * handler is already wired to the real API calls behind this flag, so
- * flipping it is the only change needed.
+ * Download, rather than deleting/re-adding the disabled prop by hand.
+ * `DocumentViewerPopup`'s download handler is already wired to the real API
+ * calls behind this flag, so flipping it is the only change needed.
  */
 export const ATTACHMENT_DOWNLOAD_DISABLED = true;

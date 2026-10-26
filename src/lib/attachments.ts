@@ -97,7 +97,7 @@ export interface UploadAttachmentResult {
   mime_type: string;
   size_bytes: number;
   checksum_sha256: string;
-  /** Always Pending fresh off upload — `/view` serves no bytes until a scanner clears it. */
+  /** Always Pending fresh off upload. */
   scan_status: ScanStatus;
 }
 

@@ -163,7 +163,6 @@ describe('normalizeTimelineEntry', () => {
           name: 'ATT-001',
           file_name: 'receipt.pdf',
           file_size: 102400,
-          file_url: '/files/receipt.pdf',
         },
       ],
     };
