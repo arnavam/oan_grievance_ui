@@ -190,7 +190,7 @@ export function LoginForm({
   // sanitised server-side too.
   const startIamSignIn = (key: string) => {
     setRedirectingKey(key);
-    const params = new URLSearchParams({ key });
+    const params = new URLSearchParams({ key, origin: window.location.origin });
     const returnUrl = safeReturnPath(new URLSearchParams(window.location.search).get('returnUrl'));
     if (returnUrl) params.set('returnUrl', returnUrl);
     // A route handler that answers with a redirect, not a page — router.push can't follow it.

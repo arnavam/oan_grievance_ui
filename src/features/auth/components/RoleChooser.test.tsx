@@ -121,7 +121,7 @@ describe('RoleChooser', () => {
     const nextStepButton = screen.getByRole('button', { name: /next step/i });
     fireEvent.click(nextStepButton);
 
-    expect(assign).toHaveBeenCalledWith('/api/auth/iam/login?key=staff');
+    expect(assign).toHaveBeenCalledWith(`/api/auth/iam/login?key=staff&origin=${encodeURIComponent(window.location.origin)}`);
   });
 
   it('navigates to /api/auth/iam/login?key=beneficiary when provider key is beneficiary', () => {
@@ -132,7 +132,7 @@ describe('RoleChooser', () => {
     const nextStepButton = screen.getByRole('button', { name: /next step/i });
     fireEvent.click(nextStepButton);
 
-    expect(assign).toHaveBeenCalledWith('/api/auth/iam/login?key=beneficiary');
+    expect(assign).toHaveBeenCalledWith(`/api/auth/iam/login?key=beneficiary&origin=${encodeURIComponent(window.location.origin)}`);
   });
 
   it('shows idle notice when reason=idle is present in the URL', () => {

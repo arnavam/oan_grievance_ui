@@ -53,6 +53,24 @@ describe('GET /api/auth/iam/login', () => {
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body).return_url).toBe('http://localhost:3000/api/auth/iam/complete');
   });
 
+  it('builds the landing URL from the origin the browser sent, not the bind address', async () => {
+    fetchMock.mockResolvedValueOnce(
+      backendResponse(200, { redirect_url: 'https://kc.example.org/auth', iam: 'agent', cookie_prefix: 'agent-' })
+    );
+    await GET(new NextRequest('http://0.0.0.0:3000/api/auth/iam/login?key=agent&origin=https%3A%2F%2Fgrievance.example.org'));
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).return_url).toBe(
+      'https://grievance.example.org/api/auth/iam/complete'
+    );
+  });
+
+  it('ignores an origin that is not http(s)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      backendResponse(200, { redirect_url: 'https://kc.example.org/auth', iam: 'agent', cookie_prefix: 'agent-' })
+    );
+    await start('key=agent&origin=javascript%3Aalert(1)');
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).return_url).toBe('http://localhost:3000/api/auth/iam/complete');
+  });
+
   it.each([
     [400, 'login_not_offered'],
     [502, 'login_failed'],
@@ -60,7 +78,7 @@ describe('GET /api/auth/iam/login', () => {
   ])('sends a %i back to the login page with %s, setting no cookie', async (status, reason) => {
     fetchMock.mockResolvedValueOnce(backendResponse(status, 'nope'));
     const res = await start('key=staff');
-    expect(res.headers.get('location')).toBe(`http://localhost:3000/login?reason=${reason}`);
+    expect(res.headers.get('location')).toBe(`/login?reason=${reason}`);
     expect(res.cookies.get('login_option')).toBeUndefined();
   });
 });

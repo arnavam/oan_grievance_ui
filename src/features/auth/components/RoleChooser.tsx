@@ -138,7 +138,7 @@ export function RoleChooser({ providers, onLogin }: RoleChooserProps = {}) {
       return;
     }
 
-    const params = new URLSearchParams({ key: resolvedKey });
+    const params = new URLSearchParams({ key: resolvedKey, origin: window.location.origin });
     const returnUrl = typeof window !== 'undefined'
       ? safeReturnPath(new URLSearchParams(window.location.search).get('returnUrl'))
       : null;

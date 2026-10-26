@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { BackendAuthError, callBackendAuth, type TokenPair } from '@/lib/oanAuthBackend';
 import { buildRateLimitKey, checkRateLimit, rateLimitedResponse, RATE_LIMITS } from '@/lib/rateLimit';
 import { setSessionCookies } from '@/lib/session';
+import { relativeRedirect } from '@/lib/relativeRedirect';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
@@ -15,8 +16,7 @@ export async function GET(request: Request) {
     url.searchParams.get('type') ??
     url.searchParams.get('portal');
   if (key) {
-    url.pathname = '/api/auth/iam/login';
-    return NextResponse.redirect(url, 303);
+    return relativeRedirect(`/api/auth/iam/login${url.search}`);
   }
   return NextResponse.json({ message: 'Missing key parameter' }, { status: 400 });
 }

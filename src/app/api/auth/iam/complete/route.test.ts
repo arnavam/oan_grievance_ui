@@ -44,7 +44,7 @@ describe('GET /api/auth/iam/complete', () => {
   it('sends a user with no role here back with no_access, keeping the option for a sign-out', async () => {
     fetchMock.mockResolvedValueOnce(me([]));
     const res = await land({ login_option: STARTED, 'X-Access-Token': iamToken() });
-    expect(res.headers.get('location')).toBe('http://localhost:3000/login?reason=no_access');
+    expect(res.headers.get('location')).toBe('/login?reason=no_access');
     expect(decodeLoginOption(res.cookies.get('login_option')?.value)?.roles).toEqual([]);
     expect(res.headers.getSetCookie().join('\n')).not.toContain('X-Access-Token');
   });

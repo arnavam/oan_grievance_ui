@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger';
 import { buildRateLimitKey, checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { safeReturnPath } from '@/lib/returnPath';
 import { setLoginOptionCookie } from '@/lib/session';
+import { relativeRedirect } from '@/lib/relativeRedirect';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
@@ -13,8 +14,18 @@ const REASONS = {
   unavailable: 'login_unavailable',
 } as const;
 
-function backToLogin(request: NextRequest, reason: string): NextResponse {
-  return NextResponse.redirect(new URL(`/login?reason=${reason}`, request.url), 303);
+function browserOrigin(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function backToLogin(reason: string): NextResponse {
+  return relativeRedirect(`/login?reason=${reason}`);
 }
 
 /**
@@ -33,31 +44,30 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get('role') ??
     request.nextUrl.searchParams.get('type') ??
     request.nextUrl.searchParams.get('portal');
-  if (!key) return backToLogin(request, REASONS.not_offered);
+  if (!key) return backToLogin(REASONS.not_offered);
 
   const clientIp = getClientIp(request);
   const limitKey = buildRateLimitKey('iam-login', clientIp);
   const limit = checkRateLimit(limitKey, RATE_LIMITS.iamLogin.limit, RATE_LIMITS.iamLogin.windowMs);
   if (!limit.allowed) {
     logger.security(`IAM login rate limit exceeded for ${clientIp}`);
-    return backToLogin(request, REASONS.unavailable);
+    return backToLogin(REASONS.unavailable);
   }
 
   // IAM redirects the browser to this URL once the login is done, as given —
   // so it must be absolute (a bare path would resolve against IAM's own host),
   // and its origin must be in the option's `return_origins` in
   // oan_auth_service. The page to land on rides along as `returnUrl`,
-  // sanitised here and again on arrival. Built from the Host the browser sent,
-  // not `request.url`, which behind a proxy carries the bind address
-  // (`0.0.0.0:3000`); a forged Host fails the `return_origins` check.
-  const host = request.headers.get('host') ?? request.nextUrl.host;
-  const proto = request.headers.get('x-forwarded-proto') ?? request.nextUrl.protocol.replace(':', '');
-  const landing = new URL('/api/auth/iam/complete', `${proto}://${host}`);
+  // sanitised here and again on arrival. Its origin is the one the browser
+  // sent (`window.location.origin`), not `request.url`, which carries the
+  // server's bind address (`0.0.0.0:3000`); a forged one fails the
+  // `return_origins` check.
+  const landing = new URL('/api/auth/iam/complete', browserOrigin(request.nextUrl.searchParams.get('origin')) ?? request.nextUrl.origin);
   const returnPath = safeReturnPath(request.nextUrl.searchParams.get('returnUrl'));
   if (returnPath) landing.searchParams.set('returnUrl', returnPath);
 
   const started = await startIamLogin(key, landing.toString(), clientIp);
-  if (!started.ok) return backToLogin(request, REASONS[started.reason]);
+  if (!started.ok) return backToLogin(REASONS[started.reason]);
 
   const response = NextResponse.redirect(started.redirectUrl, 303);
   setLoginOptionCookie(response, started.option);

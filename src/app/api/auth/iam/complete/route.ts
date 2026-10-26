@@ -3,11 +3,12 @@ import { getClientIp } from '@/lib/clientIp';
 import { isAccessTokenDropped, lookupIamUser, readIamSession, readLoginOption } from '@/lib/iamSession';
 import { safeReturnPath } from '@/lib/returnPath';
 import { clearLocalSessionCookies, setLoginOptionCookie } from '@/lib/session';
+import { relativeRedirect } from '@/lib/relativeRedirect';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-function backToLogin(request: NextRequest, reason: string): NextResponse {
-  return NextResponse.redirect(new URL(`/login?reason=${reason}`, request.url), 303);
+function backToLogin(reason: string): NextResponse {
+  return relativeRedirect(`/login?reason=${reason}`);
 }
 
 function escapeHtml(value: string): string {
@@ -33,20 +34,20 @@ function escapeHtml(value: string): string {
  */
 export async function GET(request: NextRequest) {
   const option = readLoginOption(request);
-  if (!option) return backToLogin(request, 'login_failed');
+  if (!option) return backToLogin('login_failed');
 
   const session = readIamSession(request);
   if (!session?.accessToken) {
-    return backToLogin(request, isAccessTokenDropped(request, option) ? 'token_too_large' : 'login_failed');
+    return backToLogin(isAccessTokenDropped(request, option) ? 'token_too_large' : 'login_failed');
   }
 
   const lookup = await lookupIamUser(session.accessToken, getClientIp(request));
-  if (lookup.status === 'unavailable') return backToLogin(request, 'login_unavailable');
-  if (lookup.status === 'unauthorized') return backToLogin(request, 'no_access');
+  if (lookup.status === 'unavailable') return backToLogin('login_unavailable');
+  if (lookup.status === 'unauthorized') return backToLogin('no_access');
   // The token under this option's prefix was issued through another option.
-  if (lookup.option.cookie_prefix !== option.cookie_prefix) return backToLogin(request, 'login_failed');
+  if (lookup.option.cookie_prefix !== option.cookie_prefix) return backToLogin('login_failed');
   if (!lookup.option.roles?.length) {
-    const response = backToLogin(request, 'no_access');
+    const response = backToLogin('no_access');
     setLoginOptionCookie(response, lookup.option);
     return response;
   }
