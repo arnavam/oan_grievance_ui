@@ -14,6 +14,7 @@ export const AUTH_MESSAGES = {
   iamSignInUnavailable: 'Sign-in is temporarily unavailable. Please try again shortly.',
   iamSignInNotOffered: 'This sign-in method is not available.',
   iamSignInNoAccess: 'Your account has no access to the grievance portal. Ask an administrator to grant you a role.',
+  wrongPortal: 'These credentials are not valid for this sign-in option. Please use the one meant for your account.',
   iamTokenTooLarge: 'Your account has too many roles to sign in here. Contact an administrator.',
   passwordResetSuccess: 'Your password has been reset. Please sign in with your new password.',
   tooManyAttempts: 'Too many attempts. Please wait a moment and try again.',

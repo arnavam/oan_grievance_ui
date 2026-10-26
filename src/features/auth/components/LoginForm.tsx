@@ -107,6 +107,9 @@ export function LoginForm({
       setErrorMessage(AUTH_MESSAGES.iamSignInNotOffered);
     } else if (reason === 'token_too_large') {
       setErrorMessage(AUTH_MESSAGES.iamTokenTooLarge);
+    } else if (reason === 'wrong_portal') {
+      setErrorMessage(AUTH_MESSAGES.wrongPortal);
+      setNoAccess(true);
     } else if (reason === 'no_access') {
       setErrorMessage(AUTH_MESSAGES.iamSignInNoAccess);
       setNoAccess(true);

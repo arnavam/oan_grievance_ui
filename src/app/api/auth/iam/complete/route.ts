@@ -1,4 +1,4 @@
-import { homeRouteForRoles } from '@/features/auth/rbac';
+import { homeRouteForRoles, isRoleAllowedForPortal } from '@/features/auth/rbac';
 import { getClientIp } from '@/lib/clientIp';
 import { isAccessTokenDropped, lookupIamUser, readIamSession, readLoginOption } from '@/lib/iamSession';
 import { safeReturnPath } from '@/lib/returnPath';
@@ -47,6 +47,12 @@ export async function GET(request: NextRequest) {
   if (lookup.option.cookie_prefix !== option.cookie_prefix) return backToLogin(request, 'login_failed');
   if (!lookup.option.roles?.length) {
     const response = backToLogin(request, 'no_access');
+    setLoginOptionCookie(response, lookup.option);
+    return response;
+  }
+
+  if (!isRoleAllowedForPortal(option.key, lookup.option.roles)) {
+    const response = backToLogin(request, 'wrong_portal');
     setLoginOptionCookie(response, lookup.option);
     return response;
   }

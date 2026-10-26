@@ -43,6 +43,19 @@ describe('POST /api/auth/login', () => {
     expect(body.message).not.toMatch(/incorrect email or password/i);
   });
 
+  it('refuses roles the local option does not admit: 403, no cookie, refresh token revoked', async () => {
+    callBackendAuth
+      .mockResolvedValueOnce({ access_token: 'a', refresh_token: 'r', user: 'u', roles: ['Grievance Assisted Submitter'] })
+      .mockResolvedValueOnce({});
+
+    const res = await post();
+
+    expect(res.status).toBe(403);
+    expect((await res.json()).message).toMatch(/not valid for this sign-in option/i);
+    expect(res.headers.getSetCookie()).toEqual([]);
+    expect(callBackendAuth).toHaveBeenLastCalledWith('/v1/auth/logout', { refresh_token: 'r' }, expect.anything());
+  });
+
   it('still answers 401 with the generic message for an ordinary wrong password', async () => {
     callBackendAuth.mockRejectedValue(new BackendAuthError('Invalid login credentials', 401));
 

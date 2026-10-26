@@ -1,3 +1,4 @@
+import { isRoleAllowedForPortal } from '@/features/auth/rbac';
 import { AUTH_MESSAGES } from '@/lib/authMessages';
 import { getClientIp } from '@/lib/clientIp';
 import { checkCsrf } from '@/lib/csrf';
@@ -54,6 +55,16 @@ export async function POST(request: Request) {
       { usr, pwd, remember_me: rememberMe },
       clientIp
     );
+
+    // Valid credentials, wrong door. No cookie is set; the refresh token the
+    // backend just issued is revoked so it does not outlive this refusal.
+    if (!isRoleAllowedForPortal('local', pair.roles)) {
+      logger.security(`Login refused for ${clientIp}: roles not admitted by the local sign-in option`);
+      await callBackendAuth('/v1/auth/logout', { refresh_token: pair.refresh_token }, clientIp).catch((error) =>
+        logger.error('Refresh token revocation failed:', error)
+      );
+      return NextResponse.json({ message: AUTH_MESSAGES.wrongPortal }, { status: 403 });
+    }
 
     const nextResponse = NextResponse.json({
       success: true,

@@ -49,6 +49,13 @@ describe('GET /api/auth/iam/complete', () => {
     expect(res.headers.getSetCookie().join('\n')).not.toContain('X-Access-Token');
   });
 
+  it('refuses a user whose roles the option does not admit, keeping the option for a sign-out', async () => {
+    fetchMock.mockResolvedValueOnce(me(['Grievance Submitter']));
+    const res = await land({ login_option: STARTED, 'X-Access-Token': iamToken() });
+    expect(res.headers.get('location')).toBe('http://localhost:3000/login?reason=wrong_portal');
+    expect(decodeLoginOption(res.cookies.get('login_option')?.value)?.roles).toEqual(['Grievance Submitter']);
+  });
+
   it('fails without a recorded option or token, and tells a dropped oversized token apart', async () => {
     expect((await land({ 'X-Access-Token': iamToken() })).headers.get('location')).toContain('reason=login_failed');
     expect((await land({ login_option: STARTED })).headers.get('location')).toContain('reason=login_failed');

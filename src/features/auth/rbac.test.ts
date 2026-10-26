@@ -6,6 +6,7 @@ import {
   homeRouteForRoles,
   homeRouteForUser,
   isOfficerOrAdmin,
+  isRoleAllowedForPortal,
   isProtectedRoute,
   isPublicRoute,
   ROLES,
@@ -202,5 +203,25 @@ describe('canViewAllGrievances', () => {
 
   it('differs from isOfficerOrAdmin exactly on Review Officer — the whole reason it exists', () => {
     expect(canViewAllGrievances([ROLES.REVIEW_OFFICER])).not.toBe(isOfficerOrAdmin([ROLES.REVIEW_OFFICER]));
+  });
+});
+
+describe('isRoleAllowedForPortal', () => {
+  it('keeps each role to its own option', () => {
+    expect(isRoleAllowedForPortal('agent', [ROLES.ASSISTED_SUBMITTER])).toBe(true);
+    expect(isRoleAllowedForPortal('agent', [ROLES.SUBMITTER])).toBe(false);
+    expect(isRoleAllowedForPortal('bene', [ROLES.OFFICER])).toBe(false);
+    expect(isRoleAllowedForPortal('staff', [ROLES.SUBMITTER])).toBe(false);
+    expect(isRoleAllowedForPortal('local', [ROLES.ASSISTED_SUBMITTER])).toBe(false);
+  });
+
+  it('admits a user holding any one admitted role, and treats no roles as a submitter', () => {
+    expect(isRoleAllowedForPortal('staff', [ROLES.SUBMITTER, ROLES.ADMIN])).toBe(true);
+    expect(isRoleAllowedForPortal('local', [])).toBe(true);
+    expect(isRoleAllowedForPortal('agent', [])).toBe(false);
+  });
+
+  it('does not restrict an option it does not list', () => {
+    expect(isRoleAllowedForPortal('new-option', [ROLES.SUBMITTER])).toBe(true);
   });
 });

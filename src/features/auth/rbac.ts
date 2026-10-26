@@ -76,6 +76,27 @@ export const ROLES = {
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
 /**
+ * Roles each login option admits, keyed by oan_auth_service's option key
+ * (`local` is this app's own email/password form). A valid account signing in
+ * through the wrong door — a farmer on the agent option, say — is refused
+ * server-side. An option not listed here is not restricted, so a newly enabled
+ * one never locks everyone out. A user with no roles counts as a submitter,
+ * as everywhere else (`effectiveRoles`).
+ */
+export const PORTAL_ROLES: Record<string, readonly Role[]> = {
+  bene: [ROLES.SUBMITTER],
+  local: [ROLES.SUBMITTER, ROLES.OFFICER, ROLES.ADMIN, ROLES.REVIEW_OFFICER],
+  agent: [ROLES.ASSISTED_SUBMITTER],
+  staff: [ROLES.OFFICER, ROLES.ADMIN, ROLES.REVIEW_OFFICER],
+};
+
+export function isRoleAllowedForPortal(portal: string, roles: string[]): boolean {
+  const allowed = PORTAL_ROLES[portal];
+  if (!allowed) return true;
+  return effectiveRoles(roles).some((role) => allowed.includes(role as Role));
+}
+
+/**
  * Routes open to any authenticated role, whatever it is — deliberately, not
  * by omission. `canAccessRoute` denies anything absent from both this list
  * and `ROUTE_ROLES`, so a route added later without an entry in either is
