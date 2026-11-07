@@ -18,9 +18,9 @@ interface ServiceProviderComboboxProps {
   onChange: (value: ServiceProviderRef | null) => void;
 }
 
-/** The provider's place in the directory: its type, head office and area, when it has them. */
+/** The provider's place in the directory: its type and area, when it has them. */
 function describe(option: ServiceProviderOption): string {
-  return [option.type, option.parent?.name, option.area?.path_label].filter(Boolean).join(' · ');
+  return [option.type, option.area?.path_label].filter(Boolean).join(' · ');
 }
 
 /**

@@ -17,7 +17,6 @@ export interface ServiceProviderRef {
 
 export interface ServiceProviderOption extends ServiceProviderRef {
   type: string;
-  parent: { id: string; name: string } | null;
   area: { id: string; name: string; path_label: string } | null;
 }
 
@@ -26,7 +25,7 @@ interface ServiceProviderList {
 }
 
 /**
- * GET /api/v1/service-providers — active providers matching `search` (name, registration number or parent name).
+ * GET /api/v1/service-providers — active providers matching `search` (name, registration number).
  * Reads the backend's local directory only. Pass `signal` so a slow earlier response can be abandoned.
  */
 export async function searchServiceProviders(search: string, signal?: AbortSignal): Promise<ServiceProviderOption[]> {
