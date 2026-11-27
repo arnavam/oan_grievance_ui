@@ -61,13 +61,18 @@ beforeEach(() => {
 });
 
 describe('FarmerLookup: searching', () => {
-  it('only enables the search for a 16-digit Fayda ID', () => {
-    const { unmount } = renderLookup('12345');
-    expect(searchButton()).toBeDisabled();
-    unmount();
+  it('only enables the search for a 12- or 16-digit Fayda ID', () => {
+    for (const invalid of ['12345', '1234567890123']) {
+      const { unmount } = renderLookup(invalid);
+      expect(searchButton()).toBeDisabled();
+      unmount();
+    }
 
-    renderLookup(FAYDA);
-    expect(searchButton()).toBeEnabled();
+    for (const valid of ['123456789012', FAYDA]) {
+      const { unmount } = renderLookup(valid);
+      expect(searchButton()).toBeEnabled();
+      unmount();
+    }
   });
 
   it('searches with the digits of a formatted ID', async () => {

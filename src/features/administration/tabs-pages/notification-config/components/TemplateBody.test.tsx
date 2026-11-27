@@ -13,11 +13,19 @@ const renderWithIntl = (ui: React.ReactElement) => {
     );
 };
 
+const SERVICE_PLACEHOLDERS = [
+    { key: '{ticket_number}', label: 'Ticket Number' },
+    { key: '{service_category}', label: 'Category' },
+    { key: '{status}', label: 'Status' },
+    { key: '{closure_reason}', label: 'Closure Reason' },
+    { key: '{submitter_name}', label: 'Submitter Name' },
+];
+
 describe('TemplateBody', () => {
-    it('renders common placeholders by default and inserts tag on click', () => {
+    it('renders the placeholders the service sent and inserts tag on click', () => {
         const handleChange = vi.fn();
         const { getByText, getByPlaceholderText } = renderWithIntl(
-            <TemplateBody value="Hello" onChange={handleChange} />
+            <TemplateBody value="Hello" onChange={handleChange} placeholders={SERVICE_PLACEHOLDERS} />
         );
 
         expect(getByPlaceholderText('Enter template body here...')).toBeTruthy();
@@ -32,10 +40,10 @@ describe('TemplateBody', () => {
         expect(handleChange).toHaveBeenCalledWith('Hello {ticket_number}');
     });
 
-    it('renders all default placeholders directly and inserts tag on click', () => {
+    it('renders every placeholder the service sent and inserts tag on click', () => {
         const handleChange = vi.fn();
         const { getByText, getByPlaceholderText } = renderWithIntl(
-            <TemplateBody value="" onChange={handleChange} />
+            <TemplateBody value="" onChange={handleChange} placeholders={SERVICE_PLACEHOLDERS} />
         );
 
         expect(getByPlaceholderText('Enter template body here...')).toBeTruthy();
@@ -70,10 +78,16 @@ describe('TemplateBody', () => {
         expect(queryByText('{ticket_number}')).toBeNull();
     });
 
+    it('offers no variables, and says so, when the service sent none', () => {
+        const { getByText, queryByText } = renderWithIntl(<TemplateBody value="" onChange={vi.fn()} />);
+        expect(getByText('No variables are available for this template.')).toBeTruthy();
+        expect(queryByText('{ticket_number}')).toBeNull();
+    });
+
     it('does not insert when disabled', () => {
         const handleChange = vi.fn();
         const { getByText } = renderWithIntl(
-            <TemplateBody value="Static" onChange={handleChange} disabled={true} />
+            <TemplateBody value="Static" onChange={handleChange} disabled={true} placeholders={SERVICE_PLACEHOLDERS} />
         );
 
         const button = getByText('{ticket_number}');
@@ -85,7 +99,7 @@ describe('TemplateBody', () => {
     it('inserts at cursor position when textarea is focused', () => {
         const handleChange = vi.fn();
         const { getByText, getByPlaceholderText } = renderWithIntl(
-            <TemplateBody value="Hello world" onChange={handleChange} />
+            <TemplateBody value="Hello world" onChange={handleChange} placeholders={SERVICE_PLACEHOLDERS} />
         );
 
         const textarea = getByPlaceholderText('Enter template body here...') as HTMLTextAreaElement;

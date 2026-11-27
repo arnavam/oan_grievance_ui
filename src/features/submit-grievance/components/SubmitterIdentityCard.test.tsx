@@ -152,16 +152,23 @@ describe('Step 1 — inline validation', () => {
     expect(onNext).not.toHaveBeenCalled();
   });
 
-  it('rejects a Fayda ID that is not exactly 16 digits, and clears the message once it is', () => {
+  it('rejects a Fayda ID that is not 12 or 16 digits, and clears the message once it is', () => {
     renderCard({ initialType: 'individual', initialChannel: 'web' });
     const faydaInput = byId('si-faydaId');
 
     fireEvent.change(faydaInput, { target: { value: '12345' } });
     fireEvent.blur(faydaInput);
-    expect(screen.getByText('Enter a valid Fayda ID: exactly 16 digits.')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid Fayda ID: 12 or 16 digits.')).toBeInTheDocument();
+
+    fireEvent.change(faydaInput, { target: { value: '123456789012' } });
+    expect(screen.queryByText('Enter a valid Fayda ID: 12 or 16 digits.')).not.toBeInTheDocument();
+
+    fireEvent.change(faydaInput, { target: { value: '1234567890123' } });
+    fireEvent.blur(faydaInput);
+    expect(screen.getByText('Enter a valid Fayda ID: 12 or 16 digits.')).toBeInTheDocument();
 
     fireEvent.change(faydaInput, { target: { value: '1234567890123456' } });
-    expect(screen.queryByText('Enter a valid Fayda ID: exactly 16 digits.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter a valid Fayda ID: 12 or 16 digits.')).not.toBeInTheDocument();
   });
 
   it('marks the contact email required, and rejects a malformed one', () => {

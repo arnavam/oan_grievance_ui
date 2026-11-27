@@ -20,7 +20,6 @@ export function OrganisationSignupForm({ values, setValue, errors, onFieldBlur }
         name="representativeFaydaId"
         label="Representative Fayda ID"
         required
-        placeholder="Enter 16-digit Fayda ID"
       />
     </div>
   );

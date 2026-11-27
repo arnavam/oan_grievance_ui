@@ -7,15 +7,18 @@ import { AdministrationTabs } from './components/AdministrationTabs';
 import CategorySlaConfigurationPage from './tabs-pages/category-sla-configuration/page';
 import NotificationConfigPage from './tabs-pages/notification-config/page';
 import ResponseTemplatesPage from './tabs-pages/response-templates/page';
+import SlaRulesPage from './tabs-pages/sla-rules/page';
 
 const TAB_SLUG_MAP: Record<string, string> = {
-    'category-sla': 'Category & SLA Configuration',
+    'category-sla': 'Category Configuration',
+    'sla-rules': 'SLA Rules',
     'notification-config': 'Notification Config',
     'response-templates': 'Response Templates',
 };
 
 const TAB_NAME_TO_SLUG: Record<string, string> = {
-    'Category & SLA Configuration': 'category-sla',
+    'Category Configuration': 'category-sla',
+    'SLA Rules': 'sla-rules',
     'Notification Config': 'notification-config',
     'Response Templates': 'response-templates',
 };
@@ -28,7 +31,7 @@ export default function AdministrationPage() {
     const tabParam = searchParams.get('tab')?.toLowerCase();
 
     const activeTab = useMemo(() => {
-        if (!tabParam) return 'Category & SLA Configuration';
+        if (!tabParam) return 'Category Configuration';
         if (TAB_SLUG_MAP[tabParam]) return TAB_SLUG_MAP[tabParam];
         // Normalize any hyphens/underscores/spaces
         const normalized = tabParam.replace(/[_\s]+/g, '-');
@@ -37,7 +40,7 @@ export default function AdministrationPage() {
         for (const [, name] of Object.entries(TAB_SLUG_MAP)) {
             if (name.toLowerCase() === tabParam.toLowerCase()) return name;
         }
-        return 'Category & SLA Configuration';
+        return 'Category Configuration';
     }, [tabParam]);
 
     const handleTabChange = useCallback(
@@ -58,8 +61,10 @@ export default function AdministrationPage() {
 
             <AdministrationTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-            {activeTab === 'Category & SLA Configuration' ? (
+            {activeTab === 'Category Configuration' ? (
                 <CategorySlaConfigurationPage />
+            ) : activeTab === 'SLA Rules' ? (
+                <SlaRulesPage />
             ) : activeTab === 'Notification Config' ? (
                 <NotificationConfigPage />
             ) : activeTab === 'Response Templates' ? (

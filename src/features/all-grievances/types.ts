@@ -49,6 +49,11 @@ export interface GrievanceListItem {
   updated_at?: string | null;
   /** Staff only: the ticket of the best flagged match, while an officer has yet to rule on it. */
   possible_duplicate_of?: string | null;
+  /** Staff only. Sensitive cases never reach a Kebele-level officer. */
+  is_sensitive?: boolean | number | null;
+  /** `Standard` or `Urgent`, from the SLA rule that matched when the case was filed. */
+  handling_class?: string | null;
+  priority?: string | null;
   /** The main ticket, once this one is confirmed as a duplicate. */
   duplicate_of?: string | null;
 }
@@ -144,6 +149,10 @@ export interface Grievance {
   possibleDuplicateOf?: string;
   /** The main ticket, once confirmed as a duplicate. */
   duplicateOf?: string;
+  /** A sensitive case: staff see a flag, and Kebele-level officers never get the case at all. */
+  isSensitive?: boolean;
+  /** Handled as Urgent: its SLA rule marked it so (for example in an urgent season). */
+  isUrgent?: boolean;
 }
 
 /** Filters shared by the advanced-filters sidebar and the table column filters. */

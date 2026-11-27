@@ -1,6 +1,5 @@
 /**
- * The global SLA policy and the per-category SLA windows — mirrors
- * `GlobalSlaPolicyRecord` and `SlaConfigurationRecord` in
+ * The global SLA policy — mirrors `GlobalSlaPolicyRecord` in
  * oan_grievance_service/api/v1/sla_settings.py (STG-412).
  */
 
@@ -24,47 +23,4 @@ export interface GlobalSlaPolicyData {
 /** Partial update; omitted fields stay as they are. */
 export type UpdateGlobalSlaPolicyPayload = Partial<
   Pick<GlobalSlaPolicy, 'max_deferral_days' | 'auto_escalation_threshold' | 'requires_supervisor_approval'>
->;
-
-export interface Pagination {
-  page: number;
-  page_size: number;
-  total_count: number;
-  total_pages: number;
-  has_next: boolean;
-  has_prev: boolean;
-}
-
-/** One category's SLA window, shared by every department that serves it. */
-export interface SlaConfiguration {
-  /** The configuration's id; the identifier PATCH takes. */
-  name: string;
-  service_category: string;
-  /** Departments with an active category assignment for the category. */
-  departments: string[];
-  sla_days: number;
-  auto_escalate: boolean;
-  notify_on_breach: boolean;
-  modified?: string | null;
-}
-
-export interface SlaConfigurationData {
-  sla_configuration: SlaConfiguration;
-}
-
-export interface SlaConfigurationListData {
-  sla_configurations: SlaConfiguration[];
-  pagination: Pagination;
-}
-
-export interface ListSlaConfigurationsParams {
-  page?: number;
-  page_size?: number;
-  service_category?: string;
-  department?: string;
-}
-
-/** Partial update; the service category is fixed. */
-export type UpdateSlaConfigurationPayload = Partial<
-  Pick<SlaConfiguration, 'sla_days' | 'auto_escalate' | 'notify_on_breach'>
 >;

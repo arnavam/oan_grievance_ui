@@ -24,7 +24,7 @@ export function DevelopmentAgentForm({ values, setValue, hiddenFields = [], erro
       />
 
       <div>
-        <SIIdField {...field} name="faydaId" label="Fayda ID" required placeholder="Enter 16-digit Fayda ID" />
+        <SIIdField {...field} name="faydaId" label="Fayda ID" required />
         {faydaAddon}
       </div>
 

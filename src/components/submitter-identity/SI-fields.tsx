@@ -154,7 +154,18 @@ export function SISelectField({
 }
 
 /** A national-ID input — masked, with a reveal toggle. */
-export function SIIdField({ values, setValue, errors, onFieldBlur, readOnlyFields, name, label, required, placeholder, className }: FieldProps) {
+export function SIIdField({
+  values,
+  setValue,
+  errors,
+  onFieldBlur,
+  readOnlyFields,
+  name,
+  label,
+  required,
+  placeholder = "Enter 12- or 16-digit Fayda ID",
+  className,
+}: FieldProps) {
   const id = siFieldId(name);
   const error = errors?.[name];
   const readOnly = !!readOnlyFields?.includes(name);

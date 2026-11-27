@@ -58,11 +58,14 @@ describe('POST /api/auth/register — submitter fields', () => {
     expect(forwardedBody()).not.toHaveProperty('submitter_type');
   });
 
-  it('forwards the submitter type and Fayda ID together', async () => {
-    const res = await post({ submitter_type: 'Individual Farmer', fayda_id: FAYDA_ID });
+  it('forwards the submitter type and a 12- or 16-digit Fayda ID together', async () => {
+    for (const fayda_id of ['655709214753', FAYDA_ID]) {
+      callBackendAuth.mockClear();
+      const res = await post({ submitter_type: 'Individual Farmer', fayda_id });
 
-    expect(res.status).toBe(200);
-    expect(forwardedBody()).toMatchObject({ submitter_type: 'Individual Farmer', fayda_id: FAYDA_ID });
+      expect(res.status).toBe(200);
+      expect(forwardedBody()).toMatchObject({ submitter_type: 'Individual Farmer', fayda_id });
+    }
   });
 
   it('registers an NGO or FPO under its type with the representative’s Fayda ID and no registration number', async () => {
@@ -77,11 +80,11 @@ describe('POST /api/auth/register — submitter fields', () => {
     }
   });
 
-  it('refuses an NGO / FPO whose Fayda ID is not 16 digits, without calling the backend', async () => {
+  it('refuses an NGO / FPO whose Fayda ID is not 12 or 16 digits, without calling the backend', async () => {
     for (const submitter_type of ['NGO', 'FPO']) {
       const res = await post({ submitter_type, fayda_id: '12345' });
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ message: 'Fayda ID must be a 16-digit number.' });
+      expect(await res.json()).toEqual({ message: 'Fayda ID must be a 12- or 16-digit number.' });
     }
     expect(callBackendAuth).not.toHaveBeenCalled();
   });
@@ -95,11 +98,11 @@ describe('POST /api/auth/register — submitter fields', () => {
     expect(callBackendAuth).not.toHaveBeenCalled();
   });
 
-  it('refuses a Fayda ID that is not 16 digits, without calling the backend', async () => {
-    for (const fayda_id of ['12345', '65570921475305001', 'ET-FAYDA-344012394', '', 6557092147530500]) {
+  it('refuses a Fayda ID that is not 12 or 16 digits, without calling the backend', async () => {
+    for (const fayda_id of ['12345', '1234567890123', '65570921475305001', 'ET-FAYDA-344012394', '', 6557092147530500]) {
       const res = await post({ submitter_type: 'Individual Farmer', fayda_id });
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ message: 'Fayda ID must be a 16-digit number.' });
+      expect(await res.json()).toEqual({ message: 'Fayda ID must be a 12- or 16-digit number.' });
     }
     expect(callBackendAuth).not.toHaveBeenCalled();
   });

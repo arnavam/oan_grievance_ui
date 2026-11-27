@@ -6,6 +6,9 @@ import { Eye, Pencil, FileText, X, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { NotificationTemplate, PlaceholderItem, UpdateNotificationTemplatePayload, FlatRecipientOption } from './types';
 import { TemplateBody, TemplateText } from './TemplateBody';
+import { placeholderToken } from '../utils/placeholders';
+import { channelBadgeClass, channelHasSubject } from '../utils/channels';
+import { recipientIdOf, recipientLabelOf, recipientOptionOf } from '../utils/recipients';
 
 interface NotificationRowProps {
     notification: NotificationTemplate;
@@ -14,23 +17,6 @@ interface NotificationRowProps {
     onUpdate: (templateName: string, payload: UpdateNotificationTemplatePayload) => Promise<void>;
     placeholders?: PlaceholderItem[];
     recipientOptions?: FlatRecipientOption[];
-}
-
-function getInitialRecipientId(notification: NotificationTemplate, options: FlatRecipientOption[]): string {
-    if (notification.role_level) {
-        const matched = options.find((o) => o.id === notification.role_level || o.role_level === notification.role_level);
-        if (matched) return matched.id;
-        return notification.role_level;
-    }
-    const matchedType = options.find((o) => o.recipient_type === notification.recipient_type || o.id === notification.recipient_type || o.label === notification.recipient_type);
-    if (matchedType) return matchedType.id;
-
-    if (notification.recipient_type === 'Submitter') return 'submitter';
-    if (notification.recipient_type === 'Assigned Officer') return 'assigned_officer';
-    if (notification.recipient_type === 'Department Officer' || notification.recipient_type === 'Department Head') return 'department_head';
-    if (notification.recipient_type === 'Nodal Officer') return 'nodal_officer';
-    if (notification.recipient_type === 'Top Level Authority') return 'senior_nodal_officer';
-    return options.length > 0 ? (options[0]?.id ?? 'submitter') : 'submitter';
 }
 
 function formatEventTitle(name: string, event: string): string {
@@ -46,7 +32,7 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
     const [isActive, setIsActive] = useState(notification.enabled);
     const [subject, setSubject] = useState(notification.subject || '');
     const [body, setBody] = useState(notification.body || '');
-    const [selectedRecipientId, setSelectedRecipientId] = useState(() => getInitialRecipientId(notification, recipientOptions));
+    const [selectedRecipientId, setSelectedRecipientId] = useState(() => recipientIdOf(notification, recipientOptions));
     const [isSaving, setIsSaving] = useState(false);
     const [isToggling, setIsToggling] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -56,23 +42,17 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
         if (!isExpanded) {
             setSubject(notification.subject || '');
             setBody(notification.body || '');
-            setSelectedRecipientId(getInitialRecipientId(notification, recipientOptions));
+            setSelectedRecipientId(recipientIdOf(notification, recipientOptions));
             setError(null);
         }
         setIsActive(notification.enabled);
     }, [notification, isExpanded, recipientOptions]);
 
+    const channelLabel = t.has(`channelNames.${notification.channel}`) ? t(`channelNames.${notification.channel}`) : notification.channel;
+    const hasSubject = channelHasSubject(notification.channel);
     const title = formatEventTitle(notification.name, notification.event);
 
-    const displayRecipientLabel = useMemo(() => {
-        if (notification.role_level_name) return notification.role_level_name;
-        if (notification.role_level) {
-            const found = recipientOptions.find((o) => o.id === notification.role_level);
-            if (found) return found.label;
-        }
-        if (notification.recipient_type === 'Department Officer') return 'Category Admin';
-        return notification.recipient_type || 'Submitter';
-    }, [notification, recipientOptions]);
+    const displayRecipientLabel = useMemo(() => recipientLabelOf(notification, recipientOptions), [notification, recipientOptions]);
 
     const handleToggleActive = async (newVal: boolean) => {
         setIsActive(newVal);
@@ -91,13 +71,14 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
         setIsSaving(true);
         setError(null);
         try {
-            const opt = recipientOptions.find((o) => o.id === selectedRecipientId) || recipientOptions[0] || { id: 'submitter', label: 'Submitter', recipient_type: 'Submitter', role_level: null };
+            // Only send a recipient the service itself offered; with none to pick from, leave it as it is.
+            const opt = recipientOptions.find((o) => o.id === selectedRecipientId);
+            const unchanged = opt && recipientOptionOf(notification, recipientOptions)?.id === opt.id;
             await onUpdate(notification.name, {
                 subject,
                 body,
                 enabled: isActive,
-                recipient_type: opt.recipient_type,
-                role_level: opt.role_level ?? null,
+                ...(opt && !unchanged ? { recipient_type: opt.recipient_type, role_level: opt.role_level ?? null } : {}),
             });
             setIsExpanded(false);
         } catch (err) {
@@ -110,7 +91,7 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
     const handleCancel = () => {
         setSubject(notification.subject || '');
         setBody(notification.body || '');
-        setSelectedRecipientId(getInitialRecipientId(notification, recipientOptions));
+        setSelectedRecipientId(recipientIdOf(notification, recipientOptions));
         setError(null);
         setIsExpanded(false);
     };
@@ -134,9 +115,9 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
                                 {isActive ? t('active') : t('disabled')}
                             </span>
                             <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${notification.channel === 'SMS' ? 'bg-[#FFF7D8] border-[#FEE685] text-[#BB4D00]' : 'bg-[#EFF6FF] border-[#C9E0FF] text-[#1447E6]'}`}
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${channelBadgeClass(notification.channel)}`}
                             >
-                                {notification.channel}
+                                {channelLabel}
                             </span>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
                                 {displayRecipientLabel}
@@ -146,7 +127,7 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
 
                     {/* Subtitle / Preview */}
                     <div className="text-left">
-                        {notification.channel === 'Email' ? (
+                        {hasSubject ? (
                             <p className="text-[13px] text-gray-700 truncate font-medium mb-1">
                                 {notification.subject}
                             </p>
@@ -216,7 +197,7 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
                                     <h4 className="text-[13px] font-medium text-gray-500 mb-1">{t('recipient')}</h4>
                                     <p className="text-[14px] text-gray-800">{displayRecipientLabel}</p>
                                 </div>
-                                {notification.channel === 'Email' && (
+                                {hasSubject && (
                                     <div>
                                         <h4 className="text-[13px] font-medium text-gray-500 mb-1">{t('emailSubject')}</h4>
                                         <TemplateText value={notification.subject || ''} placeholders={placeholders} />
@@ -238,7 +219,7 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
                                 )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                                    {notification.channel === 'Email' && (
+                                    {hasSubject && (
                                         <div className="md:col-span-2">
                                             <div className="flex items-center justify-between mb-2">
                                                 <label className="block text-[13px] font-medium text-gray-500">
@@ -246,7 +227,7 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
                                                 </label>
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[11px] text-gray-400">{t('insert')}</span>
-                                                    {['{ticket_number}', '{status}'].map((token) => (
+                                                    {(placeholders ?? []).map(placeholderToken).map((token) => (
                                                         <button
                                                             key={token}
                                                             type="button"
@@ -271,8 +252,8 @@ export function NotificationRow({ notification, isLast, canEdit, onUpdate, place
 
                                     <div>
                                         <label className="block text-[13px] font-medium text-gray-500 mb-2">{t('channel')}</label>
-                                        <span className={`inline-flex px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border ${notification.channel === 'SMS' ? 'bg-[#FFF7D8] border-[#FEE685] text-[#BB4D00]' : 'bg-[#EFF6FF] border-[#C9E0FF] text-[#1447E6]'}`}>
-                                            {notification.channel}
+                                        <span className={`inline-flex px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border ${channelBadgeClass(notification.channel)}`}>
+                                            {channelLabel}
                                         </span>
                                     </div>
                                 </div>

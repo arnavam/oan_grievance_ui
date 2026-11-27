@@ -215,3 +215,26 @@ describe('GrievanceTable: duplicates', () => {
     expect(view.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
   });
 });
+
+describe('GrievanceTable sensitive and urgent chips', () => {
+  const defaults = { grievances: mockGrievances } as unknown as React.ComponentProps<typeof GrievanceTable>;
+
+  it('flags a sensitive case and an urgent case', () => {
+    const { container } = renderIntl(
+      <GrievanceTable
+        {...defaults}
+        grievances={[{ ...mockGrievances[0]!, isSensitive: true, isUrgent: true }]}
+      />
+    );
+    const view = within(container);
+    expect(view.getByText('Sensitive')).toBeInTheDocument();
+    expect(view.getByText('Urgent')).toBeInTheDocument();
+  });
+
+  it('shows no chip for an ordinary case', () => {
+    const { container } = renderIntl(<GrievanceTable {...defaults} grievances={[mockGrievances[0]!]} />);
+    const view = within(container);
+    expect(view.queryByText('Sensitive')).not.toBeInTheDocument();
+    expect(view.queryByText('Urgent')).not.toBeInTheDocument();
+  });
+});

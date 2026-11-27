@@ -59,16 +59,16 @@ export function SIMaskedIdField({ value, onChange, placeholder, id, invalid, des
         data-1p-ignore
         data-lpignore="true"
         style={cssMask && !revealed ? ({ WebkitTextSecurity: "disc" } as React.CSSProperties) : undefined}
-        // Caps hand-typing at 16 (the shape FAYDA_PATTERN in fields.ts
-        // requires from someone typing their own ID). A signed-in account's
-        // own Fayda ID can come back longer, in the backend's issued shape
-        // (letters and hyphens, up to 60 chars — see ISSUED_FAYDA_ID_PATTERN)
-        // — but `maxLength` only constrains what the user can type, not a
-        // longer value set programmatically by a prefill, so capping it here
-        // doesn't truncate that case; it only stops someone hand-typing past
-        // the 16 digits the pattern actually accepts (this was 60 before,
-        // which let the Register screen's brand-new, never-prefilled field
-        // accept far more than a valid Fayda ID's length).
+        // Caps hand-typing at 16 (the shape FAYDA_ID_PATTERN in
+        // registerSubmitter.ts requires from someone typing their own ID). A
+        // signed-in account's own Fayda ID can come back longer, in the
+        // backend's issued shape (letters and hyphens, up to 60 chars — see
+        // ISSUED_FAYDA_ID_PATTERN) — but `maxLength` only constrains what the
+        // user can type, not a longer value set programmatically by a prefill,
+        // so capping it here doesn't truncate that case; it only stops someone
+        // hand-typing past the 12 or 16 digits the pattern actually accepts
+        // (this was 60 before, which let the Register screen's brand-new,
+        // never-prefilled field accept far more than a valid Fayda ID's length).
         maxLength={16}
         value={value}
         readOnly={readOnly}

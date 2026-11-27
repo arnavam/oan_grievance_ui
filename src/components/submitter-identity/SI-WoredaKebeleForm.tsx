@@ -45,7 +45,6 @@ export function WoredaKebeleForm({ values, setValue, hiddenFields = [], errors, 
         name="officialFaydaId"
         label="Official's Fayda ID"
         required
-        placeholder="Enter 16-digit Fayda ID"
       />
 
       {!hiddenFields.includes("phoneNumber") && (

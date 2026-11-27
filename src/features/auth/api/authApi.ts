@@ -123,7 +123,7 @@ export interface RegisterFields {
   phone_number: string;
   /** Backend submitter type to register as (see `backendSubmitterTypeFor`). Omit for the default, Individual Farmer. */
   submitter_type?: string;
-  /** 16-digit Fayda ID. The backend requires one for an Individual Farmer; for an NGO / FPO it is the representative's. */
+  /** 12- or 16-digit Fayda ID. The backend requires one for an Individual Farmer; for an NGO / FPO it is the representative's. */
   fayda_id?: string;
 }
 

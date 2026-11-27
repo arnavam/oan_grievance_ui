@@ -311,3 +311,18 @@ describe('duplicate fields', () => {
     expect(isTerminalStatus('In Progress')).toBe(false);
   });
 });
+
+describe('mapGrievanceListItem sensitive and urgent', () => {
+  it('reads the sensitive flag and the Urgent handling class', () => {
+    const flagged = mapGrievanceListItem({ ...baseItem, is_sensitive: 1, handling_class: 'Urgent', priority: 'Urgent' });
+    expect(flagged.isSensitive).toBe(true);
+    expect(flagged.isUrgent).toBe(true);
+  });
+
+  it('treats a case without the fields as ordinary', () => {
+    const plain = mapGrievanceListItem(baseItem);
+    expect(plain.isSensitive).toBe(false);
+    expect(plain.isUrgent).toBe(false);
+    expect(mapGrievanceListItem({ ...baseItem, is_sensitive: 0, handling_class: 'Standard' }).isUrgent).toBe(false);
+  });
+});

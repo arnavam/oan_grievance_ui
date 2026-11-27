@@ -10,11 +10,11 @@ describe('useOfficerCount', () => {
   it('reads the badge total from the status-counts response', async () => {
     fetchOfficerStatusCounts.mockResolvedValue({ active: 10, on_leave: 2, inactive: 1, total: 13 });
 
-    const { result } = renderHook(() => useOfficerCount('Officer', 'L3'));
+    const { result } = renderHook(() => useOfficerCount('Officer', 'department_head'));
 
     await waitFor(() => expect(result.current).toBe(13));
     expect(fetchOfficerStatusCounts).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'Officer', level: 'L3' }),
+      expect.objectContaining({ role: 'Officer', level: 'department_head' }),
       expect.anything()
     );
   });

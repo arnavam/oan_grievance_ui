@@ -8,8 +8,8 @@ import { registrableSubmitterTypeSchema } from './submitterType';
  */
 export const DEFAULT_SUBMISSION_CHANNEL = 'Web Portal';
 
-/** A Fayda ID is exactly 16 digits — what the backend's registration check requires too. */
-export const FAYDA_ID_PATTERN = /^\d{16}$/;
+/** A Fayda ID is 12 or 16 digits — what the backend's registration check requires too. */
+export const FAYDA_ID_PATTERN = /^(?:\d{12}|\d{16})$/;
 
 /**
  * The submitter fields `/api/auth/register` forwards to the backend, besides
@@ -20,9 +20,9 @@ export const FAYDA_ID_PATTERN = /^\d{16}$/;
 export const registerSubmitterFieldsSchema = z.object({
   submitter_type: registrableSubmitterTypeSchema.optional(),
   fayda_id: z
-    .string({ error: 'Fayda ID must be a 16-digit number.' })
+    .string({ error: 'Fayda ID must be a 12- or 16-digit number.' })
     .trim()
-    .regex(FAYDA_ID_PATTERN, 'Fayda ID must be a 16-digit number.')
+    .regex(FAYDA_ID_PATTERN, 'Fayda ID must be a 12- or 16-digit number.')
     .optional(),
 });
 

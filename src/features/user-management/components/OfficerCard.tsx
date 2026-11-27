@@ -1,5 +1,5 @@
-import { KeyRound, Mail, Phone, MapPin, Pencil } from 'lucide-react';
-import { DEFAULT_TAG_STYLE, STATUS_STYLES, TAG_STYLES, type Officer } from '../data/officers';
+import { Building2, BadgeCheck, CornerUpRight, KeyRound, Mail, Phone, MapPin, Pencil } from 'lucide-react';
+import { STATUS_STYLES, tagStyleFor, type Officer } from '../data/officers';
 
 interface OfficerCardProps {
   officer: Officer;
@@ -62,18 +62,39 @@ export function OfficerCard({ officer, onEdit, canEdit = true }: OfficerCardProp
           <MapPin size={13} className="flex-shrink-0 text-gray-400" />
           <span>Region: {officer.region}</span>
         </div>
+        {officer.designation && (
+          <div className="flex items-center gap-2 min-w-0">
+            <BadgeCheck size={13} className="flex-shrink-0 text-gray-400" />
+            <span className="truncate">Designation: {officer.designation}</span>
+          </div>
+        )}
+        {officer.department !== '-' && (
+          <div className="flex items-center gap-2 min-w-0">
+            <Building2 size={13} className="flex-shrink-0 text-gray-400" />
+            <span className="truncate">Department: {officer.department}</span>
+          </div>
+        )}
+        {(officer.reportsToName || officer.reportsTo) && (
+          <div className="flex items-center gap-2 min-w-0">
+            <CornerUpRight size={13} className="flex-shrink-0 text-gray-400" />
+            <span className="truncate">Reports to: {officer.reportsToName || officer.reportsTo}</span>
+          </div>
+        )}
       </div>
 
       {officer.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-medium text-gray-500">Service categories</span>
+          <div className="flex flex-wrap gap-1.5">
           {officer.tags.map((tag) => {
-            const style = TAG_STYLES[tag] ?? DEFAULT_TAG_STYLE;
+            const style = tagStyleFor(tag);
             return (
               <span key={tag} className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${style.bg} ${style.text} ${style.border}`}>
                 {tag}
               </span>
             );
           })}
+          </div>
         </div>
       )}
 

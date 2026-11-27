@@ -5,10 +5,9 @@ import { useTranslations } from "next-intl";
 import { Search, UserCheck } from "lucide-react";
 import { ApiError } from "@/lib/api/fetchApi";
 import { splitPhoneNumber } from "@/lib/validation/phone";
+import { FAYDA_ID_PATTERN } from "@/lib/validation/registerSubmitter";
 import { matchFarmerAreas, type FarmerAreas } from "../matchFarmerAreas";
 import { fetchFarmerDetails, searchFarmer, type RegistryFarmer } from "../api/farmerSearchApi";
-
-const FAYDA_ID_PATTERN = /^\d{16}$/;
 
 interface FarmerLookupProps {
   faydaId: string;

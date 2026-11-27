@@ -15,6 +15,8 @@ export interface UseAreasOptions {
    */
   parents?: readonly string[];
   search?: string;
+  /** List `level` areas across the whole country, with no parent chosen above (searching narrows them). */
+  standalone?: boolean;
 }
 
 export interface UseAreasResult {
@@ -28,8 +30,8 @@ export interface UseAreasResult {
 }
 
 /** Administrative areas for a dropdown, cached and deduped by `areasApi`. */
-export function useAreas({ level, parents, search = '' }: UseAreasOptions): UseAreasResult {
-  const needsParents = level !== 'Region';
+export function useAreas({ level, parents, search = '', standalone = false }: UseAreasOptions): UseAreasResult {
+  const needsParents = level !== 'Region' && !standalone;
   const args = areaQueryArgs(level, parents, search);
   const skip = needsParents && args.parents.length === 0;
 

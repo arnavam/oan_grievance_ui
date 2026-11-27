@@ -208,3 +208,16 @@ export const officerService = {
   getStatusCounts: fetchOfficerStatusCounts,
   listCategoryAssignments: fetchCategoryAssignments,
 };
+
+/**
+ * Names of the active grievance types under one service category, in display order.
+ *
+ * Corresponding REST endpoint: GET /api/v1/grievance-types
+ */
+export async function fetchGrievanceTypeNames(category: string, options: RequestOptions = {}): Promise<string[]> {
+  const data = await fetchApi<{ grievance_types: { type_name: string }[] }>(
+    `/api/v1/grievance-types${buildQuery({ service_category: category, is_active: true, page_size: 100 })}`,
+    { method: 'GET', signal: options.signal }
+  );
+  return (data?.grievance_types ?? []).map((type) => type.type_name);
+}

@@ -34,18 +34,16 @@ describe('getMissingRequiredFields', () => {
 });
 
 describe('getFieldFormatErrors', () => {
-  it('accepts a well-formed 16-digit Fayda ID', () => {
+  it('accepts a well-formed 12- or 16-digit Fayda ID', () => {
+    expect(getFieldFormatErrors('individual', { faydaId: '123456789012' })).toEqual([]);
     expect(getFieldFormatErrors('individual', { faydaId: '1234567890123456' })).toEqual([]);
   });
 
-  it('rejects a Fayda ID shorter than 16 digits', () => {
-    const errors = getFieldFormatErrors('individual', { faydaId: '123456789012345' });
-    expect(errors.some((e) => e.includes('Fayda ID'))).toBe(true);
-  });
-
-  it('rejects a Fayda ID longer than 16 digits', () => {
-    const errors = getFieldFormatErrors('individual', { faydaId: '12345678901234567' });
-    expect(errors.some((e) => e.includes('Fayda ID'))).toBe(true);
+  it('rejects a Fayda ID that is not 12 or 16 digits', () => {
+    for (const faydaId of ['12345678901', '1234567890123', '123456789012345', '12345678901234567']) {
+      const errors = getFieldFormatErrors('individual', { faydaId });
+      expect(errors.some((e) => e.includes('Fayda ID'))).toBe(true);
+    }
   });
 
   it('rejects a Fayda ID with non-digit characters', () => {
@@ -131,7 +129,7 @@ describe('getFieldError / getFieldErrors (the message shown under a field)', () 
 
   it('explains what a malformed value should look like', () => {
     expect(getFieldError('individual', 'faydaId', { faydaId: 'ab' })).toBe(
-      'Enter a valid Fayda ID: exactly 16 digits.'
+      'Enter a valid Fayda ID: 12 or 16 digits.'
     );
     expect(getFieldError('cooperative', 'registrationNumber', { registrationNumber: '!!' })).toMatch(/3-60 letters or numbers/);
     expect(getFieldError('individual', 'email', { email: 'nope' })).toBe('Enter a valid email address, e.g. name@example.com.');

@@ -34,6 +34,11 @@ export interface SubmitGrievanceResult {
   /** The files stored with the case (sent along with it as multipart), each with its scan status. */
   attachments?: unknown[];
   duplicate_submission?: boolean;
+  /**
+   * Six digits, issued only for a sensitive case the submitter filed for themselves. A claim check for this
+   * one case: it is shown once here and sent by SMS, never stored in the portal.
+   */
+  status_pin?: string | null;
 }
 
 /**

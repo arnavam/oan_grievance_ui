@@ -24,6 +24,8 @@ const BASE_OFFICER: Officer = {
   avatarColor: 'text-green-700',
   mustChangePassword: false,
   reportsTo: null,
+  reportsToName: null,
+  designation: null,
 };
 
 describe('OfficerCard', () => {
@@ -37,6 +39,22 @@ describe('OfficerCard', () => {
     expect(progressbar).toHaveAttribute('aria-valuenow', '81');
     expect(progressbar).toHaveAttribute('aria-valuemin', '0');
     expect(progressbar).toHaveAttribute('aria-valuemax', '100');
+  });
+
+  it('shows the designation, department and who the officer reports to', () => {
+    render(<OfficerCard officer={{ ...BASE_OFFICER, designation: 'Crop DA', reportsTo: 'abebe@isda.gov.et', reportsToName: 'Abebe Bikila' }} onEdit={vi.fn()} />);
+
+    expect(screen.getByText('Designation: Crop DA')).toBeInTheDocument();
+    expect(screen.getByText('Department: Inputs Supply & Distribution Agency')).toBeInTheDocument();
+    expect(screen.getByText('Reports to: Abebe Bikila')).toBeInTheDocument();
+    expect(screen.getByText('Service categories')).toBeInTheDocument();
+  });
+
+  it('leaves out designation and reports-to when the officer has none', () => {
+    render(<OfficerCard officer={BASE_OFFICER} onEdit={vi.fn()} />);
+
+    expect(screen.queryByText(/^Designation:/)).toBeNull();
+    expect(screen.queryByText(/^Reports to:/)).toBeNull();
   });
 
   it('calls onEdit with the officer when the edit button is clicked', () => {

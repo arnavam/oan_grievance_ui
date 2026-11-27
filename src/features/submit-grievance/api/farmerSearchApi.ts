@@ -37,7 +37,7 @@ export interface RegistryFarmerDetails {
   kebele: string | null;
 }
 
-/** The farmer registered under this 16-digit Fayda ID. Rejects with an `ApiError` (404 when there is none). */
+/** The farmer registered under this 12- or 16-digit Fayda ID. Rejects with an `ApiError` (404 when there is none). */
 export async function searchFarmer(faydaId: string): Promise<RegistryFarmer> {
   const data = await fetchApi<{ farmer: unknown }>(
     `/api/v1/submitters/search?fayda_id=${encodeURIComponent(faydaId)}`,

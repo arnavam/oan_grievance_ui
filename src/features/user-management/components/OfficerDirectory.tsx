@@ -6,10 +6,10 @@ import { RefreshCw } from 'lucide-react';
 import { useIsReviewOfficer } from '@/features/auth/hooks/useIsReviewOfficer';
 import { fetchGrievanceOptionsThunk, selectCategoryFilterOptions, useAreas } from '@/features/metadata';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { OFFICER_TAB_QUERY, OFFICER_TABS, OFFICER_TABS_BY_ID, REVIEWER_STATUS_OPTIONS, type Officer, type OfficerTabId } from '../data/officers';
-import { useOfficerCount } from '../hooks/useOfficerCount';
+import { buildOfficerTabs, LEGACY_TAB_IDS, REVIEWER_STATUS_OPTIONS, REVIEWER_TAB_ID, type Officer, type OfficerTabId } from '../data/officers';
 import { useOfficerList } from '../hooks/useOfficerList';
 import { useOfficerStatusCounts } from '../hooks/useOfficerStatusCounts';
+import { useRoleLevels } from '../hooks/useRoleLevels';
 import { AddNodalOfficerModal } from './AddNodalOfficerModal';
 import { EditNodalOfficerModal } from './EditNodalOfficerModal';
 import { OfficerCard } from './OfficerCard';
@@ -30,22 +30,27 @@ export function OfficerDirectory() {
   // hidden rather than left to fail with a 403 on click.
   const canManage = !useIsReviewOfficer();
 
-  const visibleTabs = useMemo(() => (canManage ? OFFICER_TABS : OFFICER_TABS.filter((tab) => tab.id !== 'reviewer')), [canManage]);
+  // One tab per rung of the escalation ladder the service publishes, then the Reviewer tab.
+  const { levels: roleLevels, isLoaded: levelsLoaded } = useRoleLevels();
+  const allTabs = useMemo(() => buildOfficerTabs(roleLevels), [roleLevels]);
+  const visibleTabs = useMemo(() => (canManage ? allTabs : allTabs.filter((tab) => tab.id !== REVIEWER_TAB_ID)), [allTabs, canManage]);
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const tabParam = searchParams?.get('tab');
+  // Older links name the three tabs that used to be fixed (`?tab=admin`).
+  const rawTab = searchParams?.get('tab');
+  const tabParam = rawTab ? (LEGACY_TAB_IDS[rawTab] ?? rawTab) : rawTab;
   const isValidTab = (tab: string | null | undefined): tab is OfficerTabId =>
     Boolean(tab && visibleTabs.some((t) => t.id === tab));
 
-  const [localTab, setLocalTab] = useState<OfficerTabId>('admin');
+  const [localTab, setLocalTab] = useState<OfficerTabId | null>(null);
   const activeTab: OfficerTabId = isValidTab(tabParam)
     ? tabParam
     : isValidTab(localTab)
       ? localTab
-      : (visibleTabs[0]?.id ?? 'admin');
+      : (visibleTabs[0]?.id ?? REVIEWER_TAB_ID);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
@@ -55,8 +60,8 @@ export function OfficerDirectory() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingOfficer, setEditingOfficer] = useState<Officer | null>(null);
 
-  const activeTabConfig = OFFICER_TABS_BY_ID[activeTab];
-  const { role, level } = OFFICER_TAB_QUERY[activeTab];
+  const activeTabConfig = visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0]!;
+  const { role, level } = activeTabConfig;
   const isReviewerTab = role === 'Reviewer';
 
   // Metadata (department/service-category/region options) backs both this page's filters
@@ -73,21 +78,15 @@ export function OfficerDirectory() {
   const apiResult = useOfficerList({
     role,
     level,
+    statsLevel: activeTabConfig.statsLevel,
+    roleTitle: activeTabConfig.roleTitle,
     search: searchQuery,
     category: categoryFilter,
     region: regionFilter,
     status: statusFilter,
     page,
-    enabled: true,
+    enabled: levelsLoaded,
   });
-
-  // Independent of which tab is active — a tab's `(N)` badge needs its real total even
-  // before you've ever clicked into it, which `apiResult` alone can't provide (it only
-  // fetches for the currently active tab).
-  const adminCount = useOfficerCount('Officer', 'L3');
-  const l1Count = useOfficerCount('Officer', 'L1');
-  const l2Count = useOfficerCount('Officer', 'L2');
-  const reviewerCount = useOfficerCount('Reviewer', undefined, canManage);
 
   // The real tabs filter by the backend's stored region id, not its display name — sending
   // the name would silently match nothing, since officers are stored with the id.
@@ -99,7 +98,7 @@ export function OfficerDirectory() {
   const totalPages = apiResult.totalPages;
   const totalCount = apiResult.totalCount;
 
-  const apiStatusCounts = useOfficerStatusCounts(role, level, true);
+  const apiStatusCounts = useOfficerStatusCounts(role, level, levelsLoaded);
   const stats = { active: apiStatusCounts.active, onLeave: apiStatusCounts.onLeave, inactive: apiStatusCounts.inactive };
 
   const activeFilterCount = [categoryFilter, regionFilter, statusFilter].filter(Boolean).length;
@@ -123,6 +122,23 @@ export function OfficerDirectory() {
     setIsFiltersOpen(false);
   };
 
+  if (!levelsLoaded) {
+    return (
+      <div className="flex flex-col gap-6 h-full font-sans" aria-busy="true">
+        <div className="bg-white rounded-xl p-6 border border-[#F1F3F4] flex flex-col gap-5 animate-pulse">
+          <div className="h-7 w-56 rounded bg-gray-100" />
+          <div className="h-4 w-96 max-w-full rounded bg-gray-100" />
+          <div className="h-12 rounded-xl bg-gray-100" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: PAGE_SIZE }, (_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-[#F1F3F4] p-5 h-64 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 h-full font-sans">
       <div className="bg-white rounded-xl p-6 border border-[#F1F3F4] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.05),0px_2px_4px_-1px_rgba(0,0,0,0.03)] flex flex-col gap-5">
@@ -135,12 +151,7 @@ export function OfficerDirectory() {
           tabs={visibleTabs}
           activeTab={activeTab}
           onChange={handleTabChange}
-          counts={{
-            admin: activeTab === 'admin' && !apiResult.isLoading ? totalCount : adminCount,
-            'nodal-l1': activeTab === 'nodal-l1' && !apiResult.isLoading ? totalCount : l1Count,
-            'nodal-l2': activeTab === 'nodal-l2' && !apiResult.isLoading ? totalCount : l2Count,
-            reviewer: activeTab === 'reviewer' && !apiResult.isLoading ? totalCount : reviewerCount,
-          }}
+          activeTotal={apiResult.isLoading ? null : totalCount}
         />
 
         <OfficerToolbar
@@ -205,6 +216,9 @@ export function OfficerDirectory() {
         onClose={() => setIsAddOpen(false)}
         role={role}
         level={level}
+        supervisorLevel={activeTabConfig.supervisorLevel}
+        supervisorLabel={activeTabConfig.supervisorLabel}
+        areaLevel={activeTabConfig.areaLevel}
         tabLabel={activeTabConfig.label}
         onCreated={apiResult.refetch}
       />
@@ -215,6 +229,9 @@ export function OfficerDirectory() {
         officer={editingOfficer}
         role={role}
         level={level}
+        supervisorLevel={activeTabConfig.supervisorLevel}
+        supervisorLabel={activeTabConfig.supervisorLabel}
+        areaLevel={activeTabConfig.areaLevel}
         tabLabel={activeTabConfig.label}
         onSaved={apiResult.refetch}
       />

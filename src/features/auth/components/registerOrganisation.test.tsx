@@ -144,7 +144,7 @@ describe('registering an NGO or FPO representative', () => {
 
     fireEvent.change(document.getElementById('si-representativeFaydaId')!, { target: { value: '12345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(screen.getByText(/exactly 16 digits/)).toBeInTheDocument();
+    expect(screen.getByText(/12 or 16 digits/)).toBeInTheDocument();
     expect(registerUser).not.toHaveBeenCalled();
   });
 

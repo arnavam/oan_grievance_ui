@@ -18,7 +18,7 @@ export function IndividualFarmerForm({ values, setValue, hiddenFields = [], read
         <SITextField {...field} name="fullName" label="Full Name" required placeholder="Enter Full Name" />
       )}
 
-      <SIIdField {...field} name="faydaId" label="Fayda ID" required placeholder="Enter 16-digit Fayda ID" />
+      <SIIdField {...field} name="faydaId" label="Fayda ID" required />
 
       {!hiddenFields.includes("phoneNumber") && (
         <SIPhoneFormField {...field} label="Contact Number" required placeholder="Enter Contact Number" />

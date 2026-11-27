@@ -8,6 +8,18 @@ import { loginThunk } from '@/features/auth/store/authSlice';
 import { makeStore } from '@/store';
 import { OfficerDirectory } from './OfficerDirectory';
 
+const LADDER = vi.hoisted(() => [
+  { level_code: 'nodal_officer', level_name: 'Kebele Nodal Officer', level_order: 10, is_active: true },
+  { level_code: 'senior_nodal_officer', level_name: 'Woreda Nodal Officer', level_order: 20, is_active: true },
+  { level_code: 'zonal_head', level_name: 'Zonal Head', level_order: 25, is_active: true },
+  { level_code: 'department_head', level_name: 'Regional Bureau Head', level_order: 30, is_active: true },
+  { level_code: 'review_officer', level_name: 'Review Officer', level_order: 910, is_active: false },
+]);
+vi.mock('../hooks/useRoleLevels', () => ({
+  useRoleLevels: () => ({ levels: LADDER, isLoaded: true }),
+  resetRoleLevelsCache: () => {},
+}));
+
 const currentSearchParams = new URLSearchParams();
 const mockRouter = {
   push: vi.fn(),
@@ -30,7 +42,7 @@ function officerRecord(overrides: Record<string, unknown> = {}) {
     full_name: 'Tigist Alemu',
     role: 'Officer',
     designation: 'Department Head',
-    level: 'L3',
+    level: 'L4',
     department: 'Finance',
     email: 'officer@example.et',
     phone: null,
@@ -99,14 +111,14 @@ function renderDirectory(role?: string) {
 }
 
 describe('OfficerDirectory', () => {
-  it('defaults to the Category Admin tab (role Officer, level L3) and shows its officers', async () => {
+  it('defaults to the first rung of the ladder (role Officer, level nodal_officer) and shows its officers', async () => {
     fetchOfficers.mockResolvedValue(listData([officerRecord()]));
 
     renderDirectory();
 
-    expect(screen.getByRole('heading', { name: 'Category Admin' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Kebele Nodal Officer' })).toBeTruthy();
     expect(await screen.findByText('Tigist Alemu')).toBeTruthy();
-    expect(fetchOfficers).toHaveBeenCalledWith(expect.objectContaining({ role: 'Officer', level: 'L3' }), expect.anything());
+    expect(fetchOfficers).toHaveBeenCalledWith(expect.objectContaining({ role: 'Officer', level: 'nodal_officer' }), expect.anything());
   });
 
   it('switches tabs to show a different officer list and description', async () => {
@@ -114,12 +126,35 @@ describe('OfficerDirectory', () => {
     renderDirectory();
     await screen.findByText('Tigist Alemu');
 
-    fetchOfficers.mockResolvedValue(listData([officerRecord({ full_name: 'Woreda Officer', level: 'L1' })]));
-    fireEvent.click(screen.getByRole('tab', { name: /Nodal Officers \(L1\)/ }));
+    fetchOfficers.mockResolvedValue(listData([officerRecord({ full_name: 'Bureau Head', level: 'L4' })]));
+    fireEvent.click(screen.getByRole('tab', { name: /Regional Bureau Head/ }));
 
-    expect(screen.getByRole('heading', { name: 'Nodal Officers (L1)' })).toBeTruthy();
-    expect(await screen.findByText('Woreda Officer')).toBeTruthy();
-    expect(fetchOfficers).toHaveBeenCalledWith(expect.objectContaining({ role: 'Officer', level: 'L1' }), expect.anything());
+    expect(screen.getByRole('heading', { name: 'Regional Bureau Head' })).toBeTruthy();
+    expect(await screen.findByText('Bureau Head')).toBeTruthy();
+    expect(fetchOfficers).toHaveBeenCalledWith(expect.objectContaining({ role: 'Officer', level: 'department_head' }), expect.anything());
+  });
+
+  it('has a tab for every active rung of the ladder, junior to senior, then the Reviewer tab', () => {
+    renderDirectory();
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\(.*\)/, '').trim())).toEqual([
+      'Kebele Nodal Officer',
+      'Woreda Nodal Officer',
+      'Zonal Head',
+      'Regional Bureau Head',
+      'Reviewer',
+    ]);
+  });
+
+  it('lists Zonal Heads by their level code, with no statistics (that endpoint only knows L1 and L2)', async () => {
+    fetchOfficers.mockResolvedValue(listData([officerRecord({ full_name: 'Zone Lead', level: 'L3' })]));
+    renderDirectory();
+    fireEvent.click(screen.getByRole('tab', { name: /Zonal Head/ }));
+
+    expect(screen.getByRole('heading', { name: 'Zonal Head' })).toBeTruthy();
+    expect(await screen.findByText('Zone Lead')).toBeTruthy();
+    expect(fetchOfficers).toHaveBeenCalledWith(expect.objectContaining({ role: 'Officer', level: 'zonal_head' }), expect.anything());
+    expect(fetchOfficerStatistics).not.toHaveBeenCalledWith(expect.objectContaining({ level: 'L3' }), expect.anything());
   });
 
   it('queries the Reviewer tab with no level at all', async () => {
@@ -139,9 +174,9 @@ describe('OfficerDirectory', () => {
   it('opens the add-officer modal with a tab-specific title', () => {
     renderDirectory();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Category Admin' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Kebele Nodal Officer' }));
 
-    expect(screen.getByRole('heading', { name: 'Add Category Admin' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Add Kebele Nodal Officer' })).toBeTruthy();
   });
 
   it('opens the advanced filters drawer with Category, Regions, and Status fields', () => {
@@ -170,7 +205,6 @@ describe('OfficerDirectory', () => {
     fetchOfficerStatistics.mockRejectedValue(new Error('Not Found'));
 
     renderDirectory();
-    fireEvent.click(screen.getByRole('tab', { name: /Nodal Officers \(L1\)/ }));
 
     expect(await screen.findByText('Woreda Officer')).toBeTruthy();
     expect(screen.queryByText('Not Found')).toBeNull();
@@ -181,7 +215,7 @@ describe('OfficerDirectory', () => {
 
     renderDirectory('Grievance Review Officer');
 
-    expect(screen.queryByRole('button', { name: 'Add Category Admin' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add Kebele Nodal Officer' })).toBeNull();
     expect(screen.queryByRole('tab', { name: /Reviewer/ })).toBeNull();
     // Still fully readable — only the write controls (and the admin-only Reviewer tab) are gone.
     expect(await screen.findByText('Tigist Alemu')).toBeTruthy();
@@ -193,7 +227,7 @@ describe('OfficerDirectory', () => {
 
     renderDirectory('Grievance Admin');
 
-    expect(screen.getByRole('button', { name: 'Add Category Admin' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add Kebele Nodal Officer' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Reviewer/ })).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Edit Tigist Alemu' })).toBeTruthy();
   });
@@ -216,7 +250,7 @@ describe('OfficerDirectory', () => {
 
     const { container } = renderDirectory();
     await screen.findByText('Tigist Alemu');
-    expect(container.textContent).toContain('Showing 1 of 30 Category Admins lists');
+    expect(container.textContent).toContain('Showing 1 of 30 Kebele Nodal Officers lists');
 
     fetchOfficers.mockResolvedValue(listData([officerRecord({ full_name: 'Abel Dereje' })], 30, 2));
     fireEvent.click(screen.getByRole('button', { name: '2' }));
@@ -225,14 +259,13 @@ describe('OfficerDirectory', () => {
     expect(fetchOfficers).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }), expect.anything());
   });
 
-  it('filters the Nodal Officers tab by the region area id, not its display name', async () => {
+  it('filters the officers by the region area id, not its display name', async () => {
     fetchOfficers.mockResolvedValue({
       officers: [],
       pagination: { page: 1, page_size: 9, total_count: 0, total_pages: 1, has_next: false, has_prev: false },
     });
 
     renderDirectory();
-    fireEvent.click(screen.getByRole('tab', { name: /Nodal Officers \(L1\)/ }));
     await screen.findByRole('button', { name: /Advanced Filters/ });
 
     fireEvent.click(screen.getByRole('button', { name: /Advanced Filters/ }));
@@ -251,28 +284,43 @@ describe('OfficerDirectory', () => {
 
   it('activates tab specified in ?tab query param when valid', async () => {
     fetchOfficers.mockResolvedValue(listData([officerRecord({ full_name: 'Senior Officer', level: 'L2' })]));
-    currentSearchParams.set('tab', 'nodal-l2');
+    currentSearchParams.set('tab', 'senior_nodal_officer');
 
     renderDirectory();
 
-    expect(screen.getByRole('heading', { name: 'Senior Nodal Officers (L2)' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Woreda Nodal Officer' })).toBeTruthy();
     expect(await screen.findByText('Senior Officer')).toBeTruthy();
     expect(fetchOfficers).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'Officer', level: 'L2' }),
+      expect.objectContaining({ role: 'Officer', level: 'senior_nodal_officer' }),
       expect.anything()
     );
   });
 
-  it('safely falls back to Category Admin when ?tab is a prototype property or invalid', async () => {
+  it.each([
+    ['admin', 'Regional Bureau Head', 'department_head'],
+    ['nodal-l1', 'Kebele Nodal Officer', 'nodal_officer'],
+    ['nodal-l2', 'Woreda Nodal Officer', 'senior_nodal_officer'],
+  ])('still opens the tab an older link names, ?tab=%s', async (legacyId, heading, level) => {
+    fetchOfficers.mockResolvedValue(listData([officerRecord()]));
+    currentSearchParams.set('tab', legacyId);
+
+    renderDirectory();
+
+    expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
+    expect(await screen.findByText('Tigist Alemu')).toBeTruthy();
+    expect(fetchOfficers).toHaveBeenCalledWith(expect.objectContaining({ role: 'Officer', level }), expect.anything());
+  });
+
+  it('safely falls back to the first tab when ?tab is a prototype property or invalid', async () => {
     fetchOfficers.mockResolvedValue(listData([officerRecord()]));
     currentSearchParams.set('tab', 'constructor');
 
     renderDirectory();
 
-    expect(screen.getByRole('heading', { name: 'Category Admin' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Kebele Nodal Officer' })).toBeTruthy();
     expect(await screen.findByText('Tigist Alemu')).toBeTruthy();
     expect(fetchOfficers).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'Officer', level: 'L3' }),
+      expect.objectContaining({ role: 'Officer', level: 'nodal_officer' }),
       expect.anything()
     );
   });
@@ -283,12 +331,12 @@ describe('OfficerDirectory', () => {
 
     renderDirectory('Grievance Review Officer');
 
-    // UI guard enforces visibleTabs restriction; falls back to default visible tab (Category Admin)
-    expect(screen.getByRole('heading', { name: 'Category Admin' })).toBeTruthy();
+    // UI guard enforces visibleTabs restriction; falls back to the default visible tab (the first rung)
+    expect(screen.getByRole('heading', { name: 'Kebele Nodal Officer' })).toBeTruthy();
     expect(screen.queryByRole('tab', { name: /Reviewer/ })).toBeNull();
     expect(await screen.findByText('Tigist Alemu')).toBeTruthy();
     expect(fetchOfficers).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'Officer', level: 'L3' }),
+      expect.objectContaining({ role: 'Officer', level: 'nodal_officer' }),
       expect.anything()
     );
     expect(fetchOfficers).not.toHaveBeenCalledWith(

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { useIsReviewOfficer } from '@/features/auth/hooks/useIsReviewOfficer';
-import { useGrievanceOptions } from '@/features/metadata';
 import {
     createGrievanceType,
     createServiceCategory,
@@ -15,36 +14,30 @@ import {
     MAX_PAGE_SIZE,
     updateServiceCategory,
 } from './api/taxonomyApi';
-import { fetchSlaConfigurations, updateSlaConfiguration } from './api/slaSettingsApi';
+import { fetchSlaRules } from '../sla-rules/api/slaRulesApi';
 import { AddCategoryModal } from './components/AddCategoryModal';
 import { GlobalSlaPolicyCard } from './components/GlobalSlaPolicyCard';
 import { SlaCategoryCard } from './components/SlaCategoryCard';
 import { slaBarPercent, slaBarReferenceDays } from './components/slaBar';
 import type { GrievanceTypeRecord, ServiceCategoryRecord } from './components/taxonomyTypes';
-import type { SlaConfiguration } from './components/slaSettingsTypes';
 import { CATEGORY_COLORS, type SlaCategory } from './components/types';
 
 /**
- * One card per category: its SLA window, auto-escalate and notify-on-breach
- * flags (GET /api/v1/sla-configurations), shared by every department that
- * serves the category. The card names those departments.
+ * One card per active category, with the days of its base SLA rule (GET /api/v1/sla-rules).
+ * The rules themselves are set on the SLA Rules tab.
  */
 function toSlaCategory(
-    config: SlaConfiguration,
+    category: ServiceCategoryRecord,
     colorIndex: number,
-    departmentNames: string,
+    baseDays: number | null,
     barReferenceDays: number
 ): SlaCategory {
     return {
-        id: config.name,
-        category: config.service_category,
+        id: category.category_name,
+        category: category.category_name,
         categoryColor: CATEGORY_COLORS[colorIndex % CATEGORY_COLORS.length] ?? '',
-        department: departmentNames,
-        configId: config.name,
-        slaDays: config.sla_days,
-        autoEscalate: config.auto_escalate,
-        notifyOnBreach: config.notify_on_breach,
-        progressPercentage: slaBarPercent(config.sla_days, barReferenceDays),
+        slaDays: baseDays,
+        progressPercentage: slaBarPercent(baseDays ?? 0, barReferenceDays),
     };
 }
 
@@ -55,14 +48,13 @@ export default function CategorySlaConfigurationPage() {
     // Response Templates. UX only; the service is the enforcement boundary.
     const canManage = !useIsReviewOfficer();
     const [categories, setCategories] = useState<ServiceCategoryRecord[]>([]);
-    const [configs, setConfigs] = useState<SlaConfiguration[]>([]);
+    const [baseDays, setBaseDays] = useState<Map<string, number>>(new Map());
     const [grievanceTypes, setGrievanceTypes] = useState<GrievanceTypeRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
     const [isAdding, setIsAdding] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
-    const { data: grievanceOptions } = useGrievanceOptions();
     // The Global SLA Policy's "Max SLA Deferral (days)": each category bar shows its SLA against it.
     // Until it loads (or if it can't) the bars use a 30-day scale.
     const [globalSlaDays, setGlobalSlaDays] = useState<number | null>(null);
@@ -74,12 +66,12 @@ export default function CategorySlaConfigurationPage() {
         const controller = new AbortController();
         Promise.all([
             fetchServiceCategories({ page_size: MAX_PAGE_SIZE }, { signal: controller.signal }),
-            fetchSlaConfigurations({ page_size: MAX_PAGE_SIZE }, { signal: controller.signal }),
+            fetchSlaRules({ is_base: true, page_size: MAX_PAGE_SIZE }, { signal: controller.signal }),
             fetchGrievanceTypes({ is_active: true, page_size: MAX_PAGE_SIZE }, { signal: controller.signal }),
         ])
-            .then(([categoryData, configData, typeData]) => {
+            .then(([categoryData, ruleData, typeData]) => {
                 setCategories(categoryData?.service_categories ?? []);
-                setConfigs(configData?.sla_configurations ?? []);
+                setBaseDays(new Map((ruleData?.rules ?? []).map((rule) => [rule.service_category, rule.sla_days])));
                 setGrievanceTypes(typeData?.grievance_types ?? []);
                 setError(null);
             })
@@ -93,30 +85,16 @@ export default function CategorySlaConfigurationPage() {
         return () => controller.abort();
     }, [reloadKey, t]);
 
-    const cards = useMemo(() => {
-        const departments = new Map((grievanceOptions?.departments ?? []).map((d) => [d.department_id, d.department_name]));
-        // A config's category missing from `categories` (a stale fetch race, or a category
-        // beyond the page_size cap) used to collapse to the same color as "found at index 0"
-        // (`Math.max(0, -1)` is 0 either way) — falls back to a hash of the name instead, so a
-        // genuine index-0 match and a true miss don't silently look identical.
-        const colorOf = (name: string) => {
-            const index = categories.findIndex((c) => c.category_name === name);
-            if (index >= 0) return index;
-            let hash = 0;
-            for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-            return Math.abs(hash);
-        };
-        // A deactivated category keeps its SLA configuration; it just leaves this list.
-        const inactive = new Set(categories.filter((c) => !c.is_active).map((c) => c.category_name));
-        return configs.filter((config) => !inactive.has(config.service_category)).map((config) =>
-            toSlaCategory(
-                config,
-                colorOf(config.service_category),
-                config.departments.map((id) => departments.get(id) ?? id).join(', '),
-                barReferenceDays
-            )
-        );
-    }, [categories, configs, grievanceOptions, barReferenceDays]);
+    const cards = useMemo(
+        // A deactivated category leaves this list; its rules stay on the SLA Rules tab.
+        () =>
+            categories
+                .filter((category) => category.is_active)
+                .map((category, index) =>
+                    toSlaCategory(category, index, baseDays.get(category.category_name) ?? null, barReferenceDays)
+                ),
+        [categories, baseDays, barReferenceDays]
+    );
 
     const typesByCategory = useMemo(() => {
         const grouped = new Map<string, GrievanceTypeRecord[]>();
@@ -149,14 +127,6 @@ export default function CategorySlaConfigurationPage() {
         reload();
     };
 
-    const handleSaveSla = async (
-        configId: string,
-        values: { sla_days: number; auto_escalate: boolean; notify_on_breach: boolean }
-    ) => {
-        await updateSlaConfiguration(configId, values);
-        reload();
-    };
-
     return (
         <div className="w-full bg-white border border-gray-200 rounded-xl shadow-sm h-[calc(100vh-230px)] flex flex-col overflow-hidden">
             {/* Scrollable Content (Global Policy + Per-Category) */}
@@ -180,9 +150,9 @@ export default function CategorySlaConfigurationPage() {
                 {/* Section 2: Per-Category SLA Windows — its own heading, with Add Category here rather than at the page's top. */}
                 <div className="flex items-start justify-between gap-4 pt-2 pb-4 mb-4 border-b border-gray-200">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 mb-1">Per-Category SLA Windows</h2>
+                        <h2 className="text-xl font-bold text-gray-900 mb-1">Categories</h2>
                         <p className="text-sm text-gray-500">
-                            Edit the SLA deadline and escalation behaviour for each service category.
+                            Each service category with its grievance types and base SLA days. Set the SLA rules on the SLA Rules tab.
                         </p>
                     </div>
                     {canManage && (
@@ -211,7 +181,6 @@ export default function CategorySlaConfigurationPage() {
                             <SlaCategoryCard
                                 key={card.id}
                                 categoryData={card}
-                                onSaveSla={canManage ? handleSaveSla : undefined}
                                 grievanceTypes={typesByCategory.get(card.category) ?? []}
                                 isDefaultCategory={card.category === defaultCategory}
                                 onAddType={canManage ? (name) => handleAddType(card.category, name) : undefined}

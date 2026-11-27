@@ -2,13 +2,8 @@ export interface SlaCategory {
     id: string;
     category: string; // e.g. "Inputs", "Markets", "Credit"
     categoryColor: string; // e.g. "bg-green-100 text-green-700"
-    department: string; // the department the category routes to
-    /** The category's SLA configuration (what PATCH takes); null when it has none. */
-    configId: string | null;
-    slaDays: number;
-    autoEscalate: boolean;
-    /** Notify on breach (the SLA configuration's flag). */
-    notifyOnBreach: boolean;
+    /** The category's base SLA rule days; null when it has none. */
+    slaDays: number | null;
     progressPercentage?: number;
 }
 

@@ -9,14 +9,31 @@
  * `name` is the user id (the officer's email).
  */
 
-/** L3 is a department head: the department's final escalation rung, shown on the Admin tab. */
-export type OfficerLevel = 'L1' | 'L2' | 'L3';
+/**
+ * What the officer list is queried by: a role level code (`nodal_officer`, `zonal_head`, ...) from
+ * `GET /api/v1/role-levels`. Tier tokens (L1, L2, ...) count rungs, so one inserted in the ladder (the Zone
+ * rung made the department head L4) would silently point a tab at another level.
+ */
+export type OfficerLevel = string;
+
+/** `GET /api/v1/role-levels` row: one rung of the escalation ladder. */
+export interface RoleLevel {
+  level_code: string;
+  level_name: string;
+  /** Rank: lower is more junior. */
+  level_order: number;
+  is_active: boolean;
+}
+
+export interface RoleLevelListData {
+  role_levels: RoleLevel[];
+}
 export type OfficerBackendStatus = 'Active' | 'On Leave' | 'Inactive';
 /**
  * `Officer` covers L1/L2/L3 (level distinguishes them); `Reviewer` is a separate, desk-scoped
  * read-only account with no level of its own — see `oan_grievance_service/api/v1/officer.py`'s
  * own module doc comment (STG-443). There is no literal "Admin" role on the wire: the
- * Administration tab's "Admin" tab is `role: 'Officer', level: 'L3'`, not a distinct role.
+ * Administration tab's "Admin" tab is `role: 'Officer', level: 'department_head'`, not a distinct role.
  */
 export type OfficerRole = 'Officer' | 'Reviewer';
 
@@ -24,7 +41,8 @@ export interface OfficerAssignment {
   assignment: string;
   service_category: string | null;
   department: string | null;
-  level: OfficerLevel | null;
+  /** A tier token (L1, L2, ...) that counts rungs, so it moves when a rung is inserted: never compare it. */
+  level: string | null;
   region: string | null;
   active: boolean;
   on_leave: boolean;
@@ -36,8 +54,8 @@ export interface OfficerRecord {
   full_name: string;
   role: OfficerRole;
   designation: string | null;
-  /** Null for a Reviewer — only an Officer (L1/L2/L3) has a level. */
-  level: OfficerLevel | null;
+  /** Null for a Reviewer — only an Officer has a level. A tier token, see `OfficerAssignment.level`. */
+  level: string | null;
   /** Null only in principle (the backend requires it on create for both roles today). */
   department: string | null;
   email: string;
@@ -57,7 +75,7 @@ export interface OfficerRecord {
 export interface OfficerStatisticsRecord {
   user: string;
   full_name: string | null;
-  level: OfficerLevel;
+  level: 'L1' | 'L2';
   role_level: string;
   assigned: number;
   resolved: number;
@@ -208,4 +226,20 @@ export interface ListCategoryAssignmentsParams {
   active?: boolean;
   page?: number;
   page_size?: number;
+}
+
+
+export interface PositionRecord {
+  position_id: string;
+  position_title: string;
+  designation?: string | null;
+  role_level?: string | null;
+  reports_to_position?: string | null;
+  active: boolean;
+  holders: number;
+}
+
+export interface PositionListData {
+  positions: PositionRecord[];
+  total: number;
 }

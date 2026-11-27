@@ -45,7 +45,6 @@ export function NGOForm({ values, setValue, hiddenFields = [], errors, onFieldBl
         name="representativeFaydaId"
         label="Representative Fayda ID"
         required
-        placeholder="Enter 16-digit Fayda ID"
       />
 
       {!hiddenFields.includes("phoneNumber") && (

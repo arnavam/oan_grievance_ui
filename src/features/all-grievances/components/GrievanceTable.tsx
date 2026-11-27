@@ -17,7 +17,9 @@ import {
   Clock,
   X,
   Copy,
+  Flame,
   ScanSearch,
+  ShieldAlert,
 } from 'lucide-react';
 import type { Grievance } from '../types';
 import type { FilterOption } from './FilterDropdown';
@@ -272,6 +274,18 @@ export function GrievanceTable({
                         {tDuplicates('chipPossible', { ticket: grievance.possibleDuplicateOf })}
                       </span>
                     ) : null}
+                    {grievance.isSensitive && (
+                      <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold leading-tight text-rose-700">
+                        <ShieldAlert className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        {t('sensitiveChip')}
+                      </span>
+                    )}
+                    {grievance.isUrgent && (
+                      <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] font-semibold leading-tight text-orange-700">
+                        <Flame className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        {t('urgentChip')}
+                      </span>
+                    )}
                     {grievance.autoCloseAt && (
                       <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold leading-tight text-slate-700">
                         <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />

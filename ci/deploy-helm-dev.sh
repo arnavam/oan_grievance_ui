@@ -19,9 +19,12 @@ set -euo pipefail
 HELM_RELEASE="${HELM_RELEASE:-grievance-ui}"
 HELM_NAMESPACE="${HELM_NAMESPACE:-grievance}"
 # The archive "Package chart" built for this build (unstashed into built-chart/), versioned like the image.
-CHART_TGZ="$(cd "$(dirname "$0")/.." && pwd)/built-chart/oan-grievance-ui-${IMMUTABLE_TAG}.tgz"
+# DEPLOY_ENV picks the values: dev (develop) or staging (the staging branch, a promoted chart).
+DEPLOY_ENV="${DEPLOY_ENV:-dev}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+CHART_TGZ="${ROOT}/built-chart/oan-grievance-ui-${IMMUTABLE_TAG}.tgz"
 test -f "${CHART_TGZ}" || { echo "${CHART_TGZ} is missing: run package_chart.py package first" >&2; exit 1; }
-VALUES_FILE="$(cd "$(dirname "$0")/../helm/environments/dev" && pwd)/oan-grievance-ui.yaml"
+VALUES_FILE="${ROOT}/helm/environments/${DEPLOY_ENV}/oan-grievance-ui.yaml"
 
 echo "=== Deploying ${HELM_RELEASE} to namespace ${HELM_NAMESPACE} ==="
 echo "    image: ${IMAGE_REPOSITORY}:${IMMUTABLE_TAG}"

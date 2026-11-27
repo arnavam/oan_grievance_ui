@@ -13,6 +13,7 @@ import { FIELDS as DEVELOPMENT_AGENT_FIELDS } from "./SI-DevelopmentAgentForm";
 import type { SIFieldMeta } from "./SI-types";
 import { isEthiopianDialCode, isValidPhoneNumber } from "@/lib/validation/phone";
 import { EMAIL_PATTERN } from "@/lib/validation/fieldRules";
+import { FAYDA_ID_PATTERN } from "@/lib/validation/registerSubmitter";
 import { organisationKindFor } from "@/lib/organisationKind";
 
 /** Which field set applies to each submitter type. */
@@ -84,19 +85,18 @@ export function getMissingRequiredFields(
     .map((field) => field.label);
 }
 
-// A Fayda (Ethiopia's national digital ID) number is exactly 16 digits — the
-// shape this app asks a user to *type*. REGISTRATION_PATTERN still mirrors
+// A Fayda (Ethiopia's national digital ID) number is 12 or 16 digits — see
+// FAYDA_ID_PATTERN in registerSubmitter.ts. REGISTRATION_PATTERN still mirrors
 // oan_grievance_service/services/identity.py's REGISTRATION_PATTERN exactly
 // (3-60 char, alphanumeric-plus-separator) — the backend enforces this once a
 // grievance is actually filed (grievance.submit isn't wired up on this branch
 // yet, but the fields collected here go straight into that same call once it
 // is). A format the backend will reject is worth catching here first, rather
 // than as a confusing rejection once that wiring lands.
-const FAYDA_PATTERN = /^\d{16}$/;
 // A signed-in account's own `fayda_id` (see initialIdentity.ts, which prefills
 // this field from it) comes back from oan_auth_service in its own issued
 // shape, e.g. "ET-FAYDA-344012394" — never raw digits. Without this, every
-// returning user's genuine, already-verified Fayda ID fails FAYDA_PATTERN the
+// returning user's genuine, already-verified Fayda ID fails FAYDA_ID_PATTERN the
 // moment Step 1 renders, blocking a grievance they never touched this field
 // for. Requires at least one letter (unlike REGISTRATION_PATTERN) so this
 // stays an escape hatch for the backend's own issued shape and doesn't also
@@ -124,10 +124,10 @@ export const ID_FIELD_KEYS = ["faydaId", "representativeFaydaId", "officialFayda
  * for why Ethiopia gets a real rule and every other country only a loose one.
  */
 function formatProblemFor(key: string, value: string, dialCode: string | undefined): { hint: string; message: string } | null {
-  if (ID_FIELD_KEYS.includes(key) && !FAYDA_PATTERN.test(value) && !ISSUED_FAYDA_ID_PATTERN.test(value)) {
+  if (ID_FIELD_KEYS.includes(key) && !FAYDA_ID_PATTERN.test(value) && !ISSUED_FAYDA_ID_PATTERN.test(value)) {
     return {
-      hint: "must be exactly 16 digits",
-      message: "Enter a valid Fayda ID: exactly 16 digits.",
+      hint: "must be 12 or 16 digits",
+      message: "Enter a valid Fayda ID: 12 or 16 digits.",
     };
   }
   if (key === "registrationNumber" && !REGISTRATION_PATTERN.test(value)) {

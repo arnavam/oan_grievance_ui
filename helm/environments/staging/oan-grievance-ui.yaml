@@ -1,0 +1,30 @@
+# Values for the oan-grievance-ui chart (helm/oan-grievance-ui).
+# Release `grievance-ui`, namespace `grievance` (shared with the backend service).
+#
+# Set at install, not here:
+# - ui.image.tag: the Jenkins tag `<version>-staging.<build>`
+
+ui:
+  image:
+    # Jenkinsfile ECR_REPO: eoan/oan-grievance-ui/grievance-ui
+    # Node IAM role (oan-services-dev-ecr-pull) must allow ecr:BatchGetImage on this repo.
+    repository: 379220350808.dkr.ecr.ap-south-1.amazonaws.com/eoan/oan-grievance-ui/grievance-ui
+
+  env:
+    # Read at runtime (src/lib/env.ts), so one image serves every environment.
+    AUTH_API_BASE_URL: https://grievance-service.qa.oanstaging.com
+    # The APISIX gateway serves the backend at `/v1/...` (no `/api`) and rewrites to Frappe's path.
+    API_PATH_PREFIX: ""
+
+  ingress:
+    enabled: true
+    # The only IngressClass on QA and not the default one: without it no controller serves the host.
+    className: apisix
+    hosts:
+    # The host of the grievance UI. DNS still points at the RKE2 deployment; once the record is moved to
+    # this instance, the RKE2 UI is retired.
+    - host: grievance.qa.oanstaging.com
+      # Helm replaces the chart's default host list, so the paths are repeated here.
+      paths:
+      - path: /
+        pathType: Prefix

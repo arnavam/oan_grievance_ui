@@ -288,7 +288,7 @@ describe('Register — profile step', () => {
 
     const fayda = document.getElementById('si-faydaId')!;
     fireEvent.change(fayda, { target: { value: 'ab' } });
-    expect(screen.getByText('Enter a valid Fayda ID: exactly 16 digits.')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid Fayda ID: 12 or 16 digits.')).toBeInTheDocument();
 
     fireEvent.change(fayda, { target: { value: '1234567890123456' } });
     expect(screen.queryByText(/Enter a valid Fayda ID/)).not.toBeInTheDocument();
@@ -433,7 +433,7 @@ describe('Submitter identity form fields', () => {
         <IndividualFarmerForm
           values={{}}
           setValue={vi.fn()}
-          errors={{ faydaId: 'Enter a valid Fayda ID: exactly 16 digits.' }}
+          errors={{ faydaId: 'Enter a valid Fayda ID: 12 or 16 digits.' }}
         />
       </NextIntlClientProvider>
     );

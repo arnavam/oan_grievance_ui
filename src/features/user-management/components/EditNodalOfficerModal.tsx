@@ -5,34 +5,24 @@ import { createPortal } from 'react-dom';
 import { Check, Copy, KeyRound, RefreshCw, Save, X } from 'lucide-react';
 import { ApiError } from '@/lib/api';
 import { errorIdFor, FieldError, INVALID_INPUT_STYLES } from '@/components/ui/FieldError';
-import { PhoneField } from '@/components/ui/PhoneField';
 import { useCopyFeedback } from '@/components/ui/useCopyFeedback';
 import { RequiredMark } from '@/components/ui/RequiredMark';
 import { useModalA11y } from '@/components/ui/useModalA11y';
-import { useAreas } from '@/features/metadata';
-import { formatToE164, splitPhoneNumber } from '@/lib/validation/phone';
+import type { AreaLevel } from '@/features/metadata';
+import { useTranslations } from 'next-intl';
 import { generateRandomPassword } from '@/lib/validation/password';
-import { validateFullName, validateOptionalLocalPhone, validateTemporaryPassword } from '@/lib/validation/fieldRules';
-import { focusFirstError, useFieldErrors } from '@/lib/validation/useFieldErrors';
+import { validateTemporaryPassword } from '@/lib/validation/fieldRules';
 import { AnimatedSelect } from './AnimatedSelect';
+import { AreaSelect, type AreaChoice } from './AreaSelect';
+import { CategoryCoverageField, type CategoryCoverage } from './CategoryCoverageField';
 import { resetTemporaryPassword, updateOfficer } from '../api/officerApi';
 import { OFFICER_STATUS_OPTIONS, REVIEWER_STATUS_OPTIONS, type Officer } from '../data/officers';
+import { useDesignations } from '../hooks/useDesignations';
 import { useL2OfficerOptions } from '../hooks/useL2OfficerOptions';
 import { useServiceCategoryOptions } from '../hooks/useServiceCategoryOptions';
 import type { OfficerBackendStatus, OfficerLevel, OfficerRole } from '../types';
 
-type FormField = 'fullName' | 'phoneNumber' | 'serviceCategories';
-
-const FIELD_IDS: Record<FormField, string> = {
-  fullName: 'edit-officer-full-name',
-  phoneNumber: 'edit-officer-phone',
-  serviceCategories: 'edit-officer-categories',
-};
-
-const FIELD_ORDER: Array<{ key: FormField; id: string }> = (Object.keys(FIELD_IDS) as FormField[]).map((key) => ({
-  key,
-  id: FIELD_IDS[key],
-}));
+const CATEGORIES_ID = 'edit-officer-categories';
 
 interface EditNodalOfficerModalProps {
   isOpen: boolean;
@@ -41,6 +31,11 @@ interface EditNodalOfficerModalProps {
   role: OfficerRole;
   /** Required when `role` is `'Officer'`; ignored for a Reviewer. */
   level?: OfficerLevel;
+  /** On the first rung only: the rung whose officers this one can report to. Shows the "Reports To" field. */
+  supervisorLevel?: OfficerLevel;
+  supervisorLabel?: string;
+  /** The deepest area this rung is placed at (Kebele for the first rung); none for a Reviewer. */
+  areaLevel?: AreaLevel;
   tabLabel?: string;
   onSaved: () => void;
 }
@@ -55,32 +50,32 @@ interface EditNodalOfficerModalProps {
  * Caller remounts this on `officer` change (`key={officer?.id ?? 'closed'}`), so the form
  * only needs to seed from `officer` once, at mount.
  */
-export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, tabLabel, onSaved }: EditNodalOfficerModalProps) {
+export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, supervisorLevel, supervisorLabel, areaLevel, tabLabel, onSaved }: EditNodalOfficerModalProps) {
+  const t = useTranslations('userManagement.add');
   const isReviewer = role === 'Reviewer';
-  const { areas: regionAreas } = useAreas({ level: 'Region' });
-  const { options: supervisorOptions } = useL2OfficerOptions(isOpen && level === 'L1');
-
-  const initialPhone = officer && officer.phone !== '-' ? splitPhoneNumber(officer.phone) : { phoneCode: '+251', phoneNumber: '' };
-
-  const [fullName, setFullName] = useState(officer?.name ?? '');
-  const [countryCode, setCountryCode] = useState(initialPhone.phoneCode);
-  const [phoneNumber, setPhoneNumber] = useState(initialPhone.phoneNumber);
-  const [serviceCategories, setServiceCategories] = useState<string[]>(officer?.tags ?? []);
-  // A category admin may take any category; an officer or reviewer only one that has a desk.
-  const { options: categoryList, isLoading: isCategoriesLoading } = useServiceCategoryOptions(
-    !isReviewer && level === 'L3' ? undefined : true
+  // Where the officer sits now, until a different area is picked; the supervisors then narrow to that area's parent.
+  const [location, setLocation] = useState<AreaChoice | null>(null);
+  // The officer's categories as they stand; their grievance types are not kept by the service, so each covers all of its types.
+  const [coverage, setCoverage] = useState<CategoryCoverage[]>(() => (officer?.tags ?? []).map((category) => ({ category, types: [] })));
+  const [hasPendingCategory, setHasPendingCategory] = useState(false);
+  const { options: supervisorOptions } = useL2OfficerOptions(
+    isOpen && !!supervisorLevel,
+    supervisorLevel,
+    location?.parentPath ?? undefined,
+    true,
+    coverage.map((entry) => entry.category)
   );
-  // Seeded directly from the officer's own area id (not by re-matching `officer.region`'s
-  // display label against the loaded area list) — that match used to fail silently whenever
-  // the backend had no region_name to show, leaving `region` blank and wiping the officer's
-  // real region on save. Safe to read synchronously: the caller remounts this component on
-  // `officer` change (see this file's own doc comment), so there's no stale-officer risk.
-  const [region, setRegion] = useState(officer?.regionId ?? '');
+  const { designations } = useDesignations(isOpen && !isReviewer, level);
+
+  const [designation, setDesignation] = useState(officer?.designation ?? '');
+  // Every category there is, whether or not it has a desk yet.
+  const { options: categoryList, isLoading: isCategoriesLoading } = useServiceCategoryOptions(undefined);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>(officer?.status ?? 'Active');
-  const [reportsTo, setReportsTo] = useState(officer?.reportsTo ?? '');
+  // Only a supervisor the admin picks here is sent; the current one is otherwise left as it is.
+  const [reportsTo, setReportsTo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const { errors: fieldErrors, setError, setAll } = useFieldErrors<FormField>();
 
   const [isIssuingPassword, setIsIssuingPassword] = useState(false);
   const [newTempPassword, setNewTempPassword] = useState('');
@@ -95,20 +90,9 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
 
   if (!isOpen || !officer) return null;
 
-  const validateField = (field: FormField): string | null => {
-    switch (field) {
-      case 'fullName':
-        return validateFullName(fullName);
-      case 'phoneNumber':
-        return validateOptionalLocalPhone(phoneNumber, countryCode);
-      case 'serviceCategories':
-        return serviceCategories.length > 0 ? null : 'Select at least one service category.';
-    }
-  };
-
-  const toggleCategory = (value: string) => {
-    setServiceCategories((prev) => (prev.includes(value) ? prev.filter((c) => c !== value) : [...prev, value]));
-    setError('serviceCategories', null);
+  const changeCoverage = (next: CategoryCoverage[]) => {
+    setCoverage(next);
+    if (next.length > 0) setCategoriesError(null);
   };
 
   const openIssuePassword = () => {
@@ -129,22 +113,26 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
     setTempPasswordError(null);
     try {
       await resetTemporaryPassword(officer.id, { temporary_password: newTempPassword });
-      setPasswordIssuedMessage('New temporary password issued. The officer must set their own before signing in.');
+      setPasswordIssuedMessage(t('passwordIssued'));
       onSaved();
     } catch (err) {
-      setTempPasswordError(err instanceof ApiError ? err.message : 'Failed to issue a new temporary password. Please try again.');
+      setTempPasswordError(err instanceof ApiError ? err.message : t('passwordIssueFailed'));
     } finally {
       setIsSubmittingPassword(false);
     }
   };
 
   const handleSave = async () => {
-    const errors = Object.fromEntries(
-      FIELD_ORDER.map(({ key }) => [key, validateField(key)]).filter(([, message]) => message)
-    );
-    if (Object.keys(errors).length > 0) {
-      setAll(errors);
-      focusFirstError(FIELD_ORDER, errors);
+    if (coverage.length === 0 || hasPendingCategory) {
+      setCategoriesError(hasPendingCategory ? t('categoryNotAdded') : t('categoriesRequired'));
+      document.getElementById(CATEGORIES_ID)?.focus();
+      return;
+    }
+
+    const supervisorChosen = !!supervisorLevel && !!reportsTo;
+    if (supervisorChosen && !supervisorOptions.some((option) => option.value === reportsTo)) {
+      // Picked, then the area or categories changed (or the list is still loading): do not drop it silently.
+      setFormError(t('supervisorUnavailable'));
       return;
     }
 
@@ -152,35 +140,21 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
     setFormError(null);
     try {
       await updateOfficer(officer.id, {
-        full_name: fullName,
-        phone: phoneNumber ? formatToE164(phoneNumber, countryCode) : null,
-        region: region || null,
+        // The account's name, email and phone belong to the account, so they are not sent from here.
+        ...(designation && designation !== (officer.designation ?? '') ? { designation } : {}),
+        ...(location?.area ? { region: location.area.id } : {}),
         status: status as OfficerBackendStatus,
-        service_categories: serviceCategories,
-        ...(level === 'L1' && reportsTo ? { reports_to: reportsTo } : {}),
+        // The service places an officer on whole categories; the type picks only narrow what the admin intended.
+        service_categories: coverage.map((entry) => entry.category),
+        ...(supervisorChosen ? { reports_to: reportsTo } : {}),
       });
       onSaved();
       onClose();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Failed to update officer. Please try again.');
+      setFormError(err instanceof ApiError ? err.message : t('updateFailed'));
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const fieldError = (field: FormField) => {
-    const message = fieldErrors[field];
-    return message ? <FieldError id={errorIdFor(FIELD_IDS[field])}>{message}</FieldError> : null;
-  };
-  const a11y = (field: FormField) => {
-    const id = FIELD_IDS[field];
-    const message = fieldErrors[field];
-    return {
-      id,
-      'aria-invalid': message ? (true as const) : undefined,
-      'aria-describedby': message ? errorIdFor(id) : undefined,
-      onBlur: () => setError(field, validateField(field)),
-    };
   };
 
   return createPortal(
@@ -193,7 +167,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
         className="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-visible flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
       >
         <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
-          <h2 id="edit-nodal-officer-title" className="text-xl font-bold text-gray-900">Edit {tabLabel ?? 'Officer'}</h2>
+          <h2 id="edit-nodal-officer-title" className="text-xl font-bold text-gray-900">{t('editTitle', { tab: tabLabel ?? t('officerFallback') })}</h2>
           <button type="button" onClick={onClose} disabled={isSubmitting} className="text-gray-400 hover:text-red-500 transition-all duration-300 p-1.5 rounded-full hover:bg-red-50 hover:rotate-90 hover:scale-110 disabled:opacity-50">
             <X size={20} />
           </button>
@@ -207,119 +181,97 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-              <div className="flex flex-col gap-2">
-                <label htmlFor={FIELD_IDS.fullName} className="text-sm font-bold text-gray-900">
-                  Full Name <RequiredMark />
-                </label>
-                <input
-                  {...a11y('fullName')}
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Enter Full Name"
-                  className={`border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A] text-gray-700 placeholder:text-gray-400 transition-colors ${INVALID_INPUT_STYLES}`}
-                />
-                {fieldError('fullName')}
+              <div className="flex flex-col gap-1 md:col-span-2 border border-gray-200 bg-gray-50 rounded-lg px-4 py-2.5">
+                <p className="text-sm font-semibold text-gray-900">{officer.name}</p>
+                <p className="text-xs text-gray-500">
+                  {officer.email}
+                  {officer.phone && officer.phone !== '-' ? ` · ${officer.phone}` : ''}
+                </p>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-gray-900">Email ID</label>
-                <input
-                  type="email"
-                  value={officer.email}
-                  disabled
-                  className="border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
-                />
-              </div>
+              {!isReviewer && (
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="edit-officer-designation" className="text-sm font-bold text-gray-900">
+                    {t('designation')}
+                  </label>
+                  <AnimatedSelect
+                    id="edit-officer-designation"
+                    options={designation && !designations.includes(designation) ? [designation, ...designations] : designations}
+                    value={designation}
+                    onChange={setDesignation}
+                    placeholder={designations.length > 0 ? t('designationPlaceholder') : t('noDesignations')}
+                  />
+                </div>
+              )}
 
-              <div className="flex flex-col gap-2">
-                <label htmlFor={FIELD_IDS.phoneNumber} className="text-sm font-bold text-gray-900">
-                  Phone
-                </label>
-                <PhoneField
-                  id={FIELD_IDS.phoneNumber}
-                  countryCode={countryCode}
-                  setCountryCode={setCountryCode}
-                  phoneNumber={phoneNumber}
-                  setPhoneNumber={setPhoneNumber}
-                  placeholder="Enter Phone Number"
-                  invalid={!!fieldErrors.phoneNumber}
-                  describedBy={fieldErrors.phoneNumber ? errorIdFor(FIELD_IDS.phoneNumber) : undefined}
-                  onBlur={() => setError('phoneNumber', validateField('phoneNumber'))}
-                />
-                {fieldError('phoneNumber')}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-gray-900">Region</label>
-                <AnimatedSelect
-                  options={regionAreas.map((area) => ({ value: area.area_id, label: area.area_name }))}
-                  value={region}
-                  onChange={setRegion}
-                  placeholder="Select Region"
-                />
-              </div>
+              {!isReviewer && areaLevel && (
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="edit-officer-location" className="text-sm font-bold text-gray-900">
+                    {t(`area${areaLevel}`)}
+                  </label>
+                  <AreaSelect
+                    id="edit-officer-location"
+                    level={areaLevel}
+                    initial={officer.regionId ? { id: officer.regionId, name: officer.region, pathCode: '' } : null}
+                    onChange={setLocation}
+                  />
+                </div>
+              )}
 
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-gray-900">
-                  Status <RequiredMark />
+                  {t('statusLabel')} <RequiredMark />
                 </label>
                 <AnimatedSelect
                   options={isReviewer ? REVIEWER_STATUS_OPTIONS : OFFICER_STATUS_OPTIONS}
                   value={status}
                   onChange={setStatus}
-                  placeholder="Select Status"
+                  placeholder={t('statusPlaceholder')}
                 />
               </div>
 
-              {level === 'L1' && (
+              {supervisorLevel && (
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-gray-900">Reports To (L2 officer)</label>
+                  <label htmlFor="edit-officer-reports-to" className="text-sm font-bold text-gray-900">{t('reportsTo', { supervisor: supervisorLabel ?? '' })}</label>
                   <AnimatedSelect
+                    id="edit-officer-reports-to"
                     options={supervisorOptions}
-                    value={reportsTo}
+                    value={supervisorOptions.some((option) => option.value === reportsTo) ? reportsTo : ''}
                     onChange={setReportsTo}
-                    placeholder="Leave blank to keep current"
+                    placeholder={
+                      !location?.area
+                        ? t('reportsToKeep', { current: officer.reportsToName || officer.reportsTo || '' })
+                        : coverage.length === 0
+                          ? t('reportsToNeedsCategories')
+                          : t('reportsToPlaceholder')
+                    }
                   />
                 </div>
               )}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label id={`${FIELD_IDS.serviceCategories}-label`} className="text-sm font-bold text-gray-900">
-                Service Categories <RequiredMark />
-              </label>
+              <span id={`${CATEGORIES_ID}-label`} className="text-sm font-bold text-gray-900">
+                {t('serviceCategories')} <RequiredMark />
+              </span>
               <div
-                id={FIELD_IDS.serviceCategories}
+                id={CATEGORIES_ID}
                 role="group"
-                aria-labelledby={`${FIELD_IDS.serviceCategories}-label`}
-                aria-describedby={fieldErrors.serviceCategories ? errorIdFor(FIELD_IDS.serviceCategories) : undefined}
-                className="flex flex-wrap gap-2"
+                tabIndex={-1}
+                aria-labelledby={`${CATEGORIES_ID}-label`}
+                aria-describedby={categoriesError ? errorIdFor(CATEGORIES_ID) : undefined}
+                className="flex flex-col gap-2"
               >
-                {isCategoriesLoading ? (
-                  <span className="text-sm text-gray-400">Loading categories…</span>
-                ) : categoryList.length === 0 ? (
-                  <span className="text-sm text-gray-400">
-                    No service categories available. Create a category first.
-                  </span>
-                ) : (
-                  categoryList.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => toggleCategory(option.value)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                        serviceCategories.includes(option.value)
-                          ? 'bg-[#16A34A] text-white border-[#16A34A]'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))
-                )}
+              <CategoryCoverageField
+                idPrefix="edit-officer"
+                coverage={coverage}
+                onChange={changeCoverage}
+                categories={categoryList}
+                isCategoriesLoading={isCategoriesLoading}
+                onPendingChange={setHasPendingCategory}
+              />
               </div>
-              {fieldError('serviceCategories')}
+              {categoriesError && <FieldError id={errorIdFor(CATEGORIES_ID)}>{categoriesError}</FieldError>}
               {formError?.toLowerCase().includes('category assignment') && (
                 <p className="text-xs text-red-600">{formError}</p>
               )}
@@ -329,11 +281,11 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
               {!isIssuingPassword ? (
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex flex-col">
-                    <span className="text-sm font-bold text-gray-900">Sign-in</span>
+                    <span className="text-sm font-bold text-gray-900">{t('signIn')}</span>
                     <span className="text-xs text-gray-500">
                       {officer.mustChangePassword
-                        ? 'Awaiting first sign-in — the officer still holds a temporary password.'
-                        : 'Officer has set their own password.'}
+                        ? t('awaitingFirstSignInNote')
+                        : t('ownPasswordSet')}
                     </span>
                   </div>
                   <button
@@ -342,12 +294,12 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
                     className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-white transition-colors"
                   >
                     <KeyRound size={14} />
-                    Issue New Temporary Password
+                    {t('issueNewPassword')}
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-gray-900">New Temporary Password</label>
+                  <label className="text-sm font-bold text-gray-900">{t('newTempPasswordLabel')}</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
@@ -357,7 +309,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
                         setTempPasswordError(null);
                       }}
                       aria-invalid={tempPasswordError ? true : undefined}
-                      placeholder="At least 8 characters, a letter and a number"
+                      placeholder={t('tempPasswordPlaceholder')}
                       className={`flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-mono text-gray-700 placeholder:text-gray-400 transition-colors bg-white ${INVALID_INPUT_STYLES}`}
                     />
                     <button
@@ -366,7 +318,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
                         setNewTempPassword(generateRandomPassword());
                         setTempPasswordError(null);
                       }}
-                      aria-label="Generate a new password"
+                      aria-label={t('generatePassword')}
                       className="p-2.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-white hover:text-gray-700 transition-colors"
                     >
                       <RefreshCw size={16} />
@@ -374,7 +326,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
                     <button
                       type="button"
                       onClick={() => void copyNewPassword(newTempPassword)}
-                      aria-label="Copy password"
+                      aria-label={t('copyPassword')}
                       className="p-2.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-white hover:text-gray-700 transition-colors"
                     >
                       {isPasswordCopied ? <Check size={16} className="text-[#16A34A]" /> : <Copy size={16} />}
@@ -383,7 +335,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
                   {tempPasswordError && <p className="text-xs text-red-600">{tempPasswordError}</p>}
                   {passwordIssuedMessage && <p className="text-xs text-[#16A34A] font-medium">{passwordIssuedMessage}</p>}
                   <p className="text-xs text-gray-400">
-                    This ends the officer&apos;s current sessions. Tell them the new password directly — it isn&apos;t emailed.
+                    {t('passwordNote')}
                   </p>
                   <div className="flex justify-end gap-2 mt-1">
                     <button
@@ -391,7 +343,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
                       onClick={() => setIsIssuingPassword(false)}
                       className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-white rounded-lg border border-gray-200 transition-colors"
                     >
-                      {passwordIssuedMessage ? 'Close' : 'Cancel'}
+                      {passwordIssuedMessage ? t('close') : t('cancel')}
                     </button>
                     {!passwordIssuedMessage && (
                       <button
@@ -400,7 +352,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
                         disabled={isSubmittingPassword}
                         className="px-4 py-2 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803d] rounded-lg transition-colors disabled:opacity-60"
                       >
-                        {isSubmittingPassword ? 'Issuing…' : 'Issue Password'}
+                        {isSubmittingPassword ? t('issuing') : t('issuePassword')}
                       </button>
                     )}
                   </div>
@@ -411,7 +363,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
 
           <div className="px-8 py-5 flex justify-end gap-4 mt-4 border-t border-gray-100">
             <button type="button" onClick={onClose} disabled={isSubmitting} className="px-8 py-2.5 border border-[#1e293b] text-[#1e293b] rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors disabled:opacity-50">
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="submit"
@@ -419,7 +371,7 @@ export function EditNodalOfficerModal({ isOpen, onClose, officer, role, level, t
               className="px-6 py-2.5 bg-[#16A34A] hover:bg-[#15803d] text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-60"
             >
               <Save size={18} />
-              {isSubmitting ? 'Saving…' : 'Save Changes'}
+              {isSubmitting ? t('saving') : t('saveChanges')}
             </button>
           </div>
         </form>

@@ -153,6 +153,8 @@ export function mapGrievanceListItem(item: GrievanceListItem): Grievance {
     administrativeArea: item.administrative_area ?? '',
     possibleDuplicateOf: item.possible_duplicate_of ?? undefined,
     duplicateOf: item.duplicate_of ?? undefined,
+    isSensitive: Boolean(item.is_sensitive),
+    isUrgent: item.handling_class === 'Urgent',
   };
 }
 

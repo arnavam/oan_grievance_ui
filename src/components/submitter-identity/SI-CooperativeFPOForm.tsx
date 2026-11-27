@@ -54,7 +54,6 @@ export function CooperativeFPOForm({ values, setValue, hiddenFields = [], errors
         name="representativeFaydaId"
         label="Representative Fayda ID"
         required
-        placeholder="Enter 16-digit Fayda ID"
       />
 
       {!hiddenFields.includes("phoneNumber") && (

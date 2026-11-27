@@ -1,4 +1,4 @@
-import { FileText, List, Plus } from "lucide-react";
+import { FileText, KeyRound, List, Plus } from "lucide-react";
 import Link from "next/link";
 import type { SubmitGrievanceResult } from "../api/submitGrievanceApi";
 
@@ -95,6 +95,25 @@ export function GrievanceSubmittedCard({
             {ticketNumber}
           </p>
         </div>
+
+        {result.status_pin && (
+          <div
+            role="status"
+            className="mb-5 min-w-[340px] max-w-[420px] rounded-xl border border-rose-200 bg-rose-50 p-5 text-center animate-slide-up delay-400"
+          >
+            <p className="mb-1.5 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-rose-700">
+              <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+              Your status PIN
+            </p>
+            <p className="text-2xl font-bold tracking-[0.3em] text-gray-900">
+              {result.status_pin}
+            </p>
+            <p className="mt-2 text-xs text-rose-800">
+              This case is marked sensitive. Keep this PIN private: you need it with
+              your ticket number to check the case. It was also sent to you by SMS.
+            </p>
+          </div>
+        )}
 
         {(result.status || respondBy) && (
           <dl className="mb-5 grid gap-x-8 gap-y-1 text-sm text-gray-600 animate-slide-up delay-400 sm:grid-cols-[auto_auto]">
